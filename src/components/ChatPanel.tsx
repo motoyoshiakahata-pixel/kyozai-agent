@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useRef, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { OUTPUT_FORMAT_LABELS, type OutputFormat } from "@/lib/prompts";
+import type { ChatStreamEvent } from "@/lib/chat-events";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+  statuses: string[];
 }
 
 const OUTPUT_FORMATS = Object.keys(OUTPUT_FORMAT_LABELS) as OutputFormat[];
@@ -16,7 +18,15 @@ export function ChatPanel() {
   const [outputFormat, setOutputFormat] = useState<OutputFormat>("google_doc");
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+
+  function updateLastAssistantMessage(update: (message: Message) => Message) {
+    setMessages((current) => {
+      const updated = [...current];
+      const last = updated[updated.length - 1];
+      updated[updated.length - 1] = update(last);
+      return updated;
+    });
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -24,20 +34,22 @@ export function ChatPanel() {
     if (!text || isSending) return;
 
     setError(null);
-    const nextMessages: Message[] = [...messages, { role: "user", content: text }];
-    setMessages([...nextMessages, { role: "assistant", content: "" }]);
+    const nextMessages: Message[] = [
+      ...messages,
+      { role: "user", content: text, statuses: [] },
+    ];
+    setMessages([...nextMessages, { role: "assistant", content: "", statuses: [] }]);
     setInput("");
     setIsSending(true);
-
-    const controller = new AbortController();
-    abortRef.current = controller;
 
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMessages, outputFormat }),
-        signal: controller.signal,
+        body: JSON.stringify({
+          messages: nextMessages.map(({ role, content }) => ({ role, content })),
+          outputFormat,
+        }),
       });
 
       if (!response.ok || !response.body) {
@@ -47,26 +59,44 @@ export function ChatPanel() {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = "";
 
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        setMessages((current) => {
-          const updated = [...current];
-          const last = updated[updated.length - 1];
-          updated[updated.length - 1] = {
-            ...last,
-            content: last.content + chunk,
-          };
-          return updated;
-        });
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          let event: ChatStreamEvent;
+          try {
+            event = JSON.parse(line);
+          } catch {
+            continue;
+          }
+
+          if (event.type === "delta") {
+            updateLastAssistantMessage((m) => ({
+              ...m,
+              content: m.content + event.text,
+            }));
+          } else if (event.type === "status") {
+            updateLastAssistantMessage((m) => ({
+              ...m,
+              statuses: [...m.statuses, event.text],
+            }));
+          } else if (event.type === "error") {
+            setError(event.text);
+          }
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "エラーが発生しました。");
     } finally {
       setIsSending(false);
-      abortRef.current = null;
     }
   }
 
@@ -88,10 +118,36 @@ export function ChatPanel() {
             className={
               message.role === "user"
                 ? "self-end rounded-2xl bg-foreground px-4 py-2 text-sm text-background"
-                : "self-start whitespace-pre-wrap rounded-2xl bg-zinc-100 px-4 py-2 text-sm text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200"
+                : "flex flex-col gap-1 self-start"
             }
           >
-            {message.content || (isSending && index === messages.length - 1 ? "…" : "")}
+            {message.role === "assistant" && message.statuses.length > 0 && (
+              <ul className="flex flex-col gap-0.5 pl-1 text-xs text-zinc-400 dark:text-zinc-500">
+                {message.statuses.map((status, statusIndex) => (
+                  <li key={statusIndex}>{status}</li>
+                ))}
+              </ul>
+            )}
+            {(message.role === "user" || message.content) && (
+              <div
+                className={
+                  message.role === "assistant"
+                    ? "whitespace-pre-wrap rounded-2xl bg-zinc-100 px-4 py-2 text-sm text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200"
+                    : undefined
+                }
+              >
+                {message.content}
+              </div>
+            )}
+            {message.role === "assistant" &&
+              !message.content &&
+              message.statuses.length === 0 &&
+              isSending &&
+              index === messages.length - 1 && (
+                <div className="rounded-2xl bg-zinc-100 px-4 py-2 text-sm text-zinc-500 dark:bg-zinc-900 dark:text-zinc-500">
+                  …
+                </div>
+              )}
           </div>
         ))}
       </div>

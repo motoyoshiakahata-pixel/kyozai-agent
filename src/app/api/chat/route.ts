@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import type Anthropic from "@anthropic-ai/sdk";
+import Anthropic from "@anthropic-ai/sdk";
 import { getValidAccessToken } from "@/lib/session";
 import {
   getAnthropicClient,
@@ -9,6 +9,7 @@ import {
   MCP_SERVER_NAME,
 } from "@/lib/anthropic";
 import { buildSystemPrompt, type OutputFormat } from "@/lib/prompts";
+import { describeMcpToolUse, type ChatStreamEvent } from "@/lib/chat-events";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,28 @@ interface ChatMessage {
 }
 
 const MAX_CONTINUATIONS = 3;
+
+function describeError(error: unknown): string {
+  if (error instanceof Anthropic.RateLimitError) {
+    return "現在Anthropic APIへのアクセスが集中しています。しばらくしてから再度お試しください。";
+  }
+  if (
+    error instanceof Anthropic.AuthenticationError ||
+    error instanceof Anthropic.PermissionDeniedError
+  ) {
+    return "Anthropic APIの認証に失敗しました。管理者に環境変数の設定を確認してもらってください。";
+  }
+  if (error instanceof Anthropic.BadRequestError) {
+    return "リクエストの内容に問題があります。指示の内容を変えて再度お試しください。";
+  }
+  if (error instanceof Anthropic.APIConnectionError) {
+    return "Anthropic APIまたはGoogle Drive MCPサーバーへの接続に失敗しました。しばらくしてから再度お試しください。";
+  }
+  if (error instanceof Anthropic.APIError) {
+    return `Anthropic APIでエラーが発生しました（${error.status ?? "unknown"}）。しばらくしてから再度お試しください。`;
+  }
+  return "エラーが発生しました。しばらくしてから再度お試しください。";
+}
 
 export async function POST(request: NextRequest) {
   const accessToken = await getValidAccessToken();
@@ -47,7 +70,8 @@ export async function POST(request: NextRequest) {
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const send = (text: string) => controller.enqueue(encoder.encode(text));
+      const sendEvent = (event: ChatStreamEvent) =>
+        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
 
       let anthropicMessages: Anthropic.Beta.BetaMessageParam[] = messages.map(
         (m) => ({ role: m.role, content: m.content }),
@@ -73,7 +97,18 @@ export async function POST(request: NextRequest) {
             betas: ["mcp-client-2025-11-20"],
           });
 
-          mcpStream.on("text", (delta) => send(delta));
+          mcpStream.on("text", (delta) => sendEvent({ type: "delta", text: delta }));
+
+          mcpStream.on("contentBlock", (block) => {
+            if (block.type === "mcp_tool_use") {
+              sendEvent({ type: "status", text: describeMcpToolUse(block.name) });
+            } else if (block.type === "mcp_tool_result" && block.is_error) {
+              sendEvent({
+                type: "status",
+                text: "Googleドライブの操作でエラーが発生しました。別の方法を試みます…",
+              });
+            }
+          });
 
           const finalMessage = await mcpStream.finalMessage();
 
@@ -86,16 +121,17 @@ export async function POST(request: NextRequest) {
           }
 
           if (finalMessage.stop_reason === "refusal") {
-            send(
-              "\n\n[このリクエストは処理できませんでした。内容を変えて再度お試しください。]",
-            );
+            sendEvent({
+              type: "error",
+              text: "このリクエストは処理できませんでした。内容を変えて再度お試しください。",
+            });
           }
 
           break;
         }
       } catch (error) {
         console.error("Anthropic API呼び出しに失敗しました", error);
-        send("\n\n[エラーが発生しました。しばらくしてから再度お試しください。]");
+        sendEvent({ type: "error", text: describeError(error) });
       } finally {
         controller.close();
       }
@@ -103,6 +139,6 @@ export async function POST(request: NextRequest) {
   });
 
   return new Response(stream, {
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
+    headers: { "Content-Type": "application/x-ndjson; charset=utf-8" },
   });
 }
