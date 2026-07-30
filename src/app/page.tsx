@@ -33,12 +33,15 @@ export default async function Home(props: PageProps<"/">) {
   return (
     <div className="flex flex-1 flex-col items-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex w-full max-w-3xl flex-1 flex-col gap-10 px-6 py-16 sm:px-10">
-        <header className="flex flex-col gap-3">
-          <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+        <header className="flex flex-col gap-4">
+          <span className="inline-flex w-fit items-center gap-2 rounded-full bg-accent-soft px-3 py-1 text-sm font-medium text-accent">
+            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-accent" />
             教材作成AIエージェント
           </span>
-          <h1 className="text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
-            高校「公共」の教材づくりを、AIエージェントと。
+          <h1 className="text-3xl font-semibold tracking-tight text-black sm:text-4xl dark:text-zinc-50">
+            高校「公共」の教材づくりを、
+            <br className="hidden sm:block" />
+            AIエージェントと。
           </h1>
           <p className="text-base leading-7 text-zinc-600 dark:text-zinc-400">
             Googleドライブに保存済みの教科書PDF・過去問を参照しながら、指示に応じて新しい問題やプリントを作成し、専用フォルダに保存します。
@@ -51,10 +54,13 @@ export default async function Home(props: PageProps<"/">) {
           </p>
         )}
 
-        <section className="flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white p-4 text-sm dark:border-zinc-800 dark:bg-zinc-950">
+        <section className="flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white p-4 text-sm shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
           {session ? (
             <>
-              <span className="text-zinc-600 dark:text-zinc-400">
+              <span className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
+                  {(session.name ?? session.email ?? "?").slice(0, 1)}
+                </span>
                 {session.name ?? session.email} としてログイン中
               </span>
               <form action="/api/auth/logout" method="post">
@@ -73,7 +79,7 @@ export default async function Home(props: PageProps<"/">) {
               </span>
               <a
                 href="/api/auth/login"
-                className="rounded-full bg-foreground px-4 py-1.5 text-sm font-medium text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]"
+                className="rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-accent-foreground shadow-sm transition-colors hover:brightness-110"
               >
                 Googleでログイン
               </a>
@@ -81,14 +87,17 @@ export default async function Home(props: PageProps<"/">) {
           )}
         </section>
 
-        <section className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+        <section className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
           <h2 className="text-lg font-semibold text-black dark:text-zinc-50">
             参照フォルダ
           </h2>
-          <ul className="flex flex-col gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+          <ul className="grid gap-2 text-sm text-zinc-600 sm:grid-cols-2 dark:text-zinc-400">
             {referenceFolders.map((folder) => (
-              <li key={folder} className="flex items-start gap-2">
-                <span aria-hidden className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
+              <li
+                key={folder}
+                className="flex items-start gap-2 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-900"
+              >
+                <span aria-hidden className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
                 {folder}
               </li>
             ))}
@@ -98,7 +107,7 @@ export default async function Home(props: PageProps<"/">) {
         {session ? (
           <ChatPanel />
         ) : (
-          <section className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+          <section className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-lg font-semibold text-black dark:text-zinc-50">
               出力形式
             </h2>
@@ -106,7 +115,7 @@ export default async function Home(props: PageProps<"/">) {
               {outputFormats.map((format) => (
                 <span
                   key={format}
-                  className="rounded-full border border-zinc-200 px-3 py-1 text-sm text-zinc-700 dark:border-zinc-700 dark:text-zinc-300"
+                  className="rounded-full border border-accent/30 bg-accent-soft px-3 py-1 text-sm text-accent"
                 >
                   {format}
                 </span>
