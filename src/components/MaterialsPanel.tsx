@@ -54,16 +54,16 @@ export function MaterialsPanel({ refreshSignal }: { refreshSignal: number }) {
   }, [load, refreshSignal]);
 
   return (
-    <section className="card flex flex-col gap-3 rounded-2xl border border-zinc-200/80 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+    <section className="card flex flex-col gap-3 rounded-2xl border border-stone-200/80 bg-white p-6 dark:border-stone-800 dark:bg-stone-950">
       <div className="flex items-center justify-between">
-        <h2 className="font-serif text-lg font-bold text-black dark:text-zinc-50">
+        <h2 className="font-serif text-lg font-bold text-black dark:text-stone-50">
           作成履歴
         </h2>
         <button
           type="button"
           onClick={() => void load()}
           disabled={loading}
-          className="text-xs text-zinc-500 underline decoration-dotted hover:text-accent disabled:opacity-50 dark:text-zinc-400"
+          className="text-xs text-stone-500 underline decoration-dotted hover:text-accent disabled:opacity-50 dark:text-stone-400"
         >
           更新
         </button>
@@ -72,29 +72,29 @@ export function MaterialsPanel({ refreshSignal }: { refreshSignal: number }) {
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
       {!error && materials !== null && materials.length === 0 && (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-sm text-stone-500 dark:text-stone-400">
           「作成教材」フォルダにはまだファイルがありません。
         </p>
       )}
 
       {!error && materials === null && (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">読み込み中…</p>
+        <p className="text-sm text-stone-500 dark:text-stone-400">読み込み中…</p>
       )}
 
       {materials && materials.length > 0 && (
-        <ul className="flex flex-col divide-y divide-zinc-100 dark:divide-zinc-900">
+        <ul className="flex flex-col divide-y divide-stone-100 dark:divide-stone-900">
           {materials.map((material) => (
             <li key={material.id} className="flex items-center justify-between gap-3 py-2">
               <div className="flex min-w-0 items-center gap-2">
                 <span className="shrink-0 rounded-full border border-accent/30 bg-accent-soft px-2 py-0.5 text-[0.65rem] font-medium text-accent">
                   {formatTypeLabel(material.mimeType)}
                 </span>
-                <span className="truncate text-sm text-zinc-700 dark:text-zinc-300">
+                <span className="truncate text-sm text-stone-700 dark:text-stone-300">
                   {material.name}
                 </span>
               </div>
               <div className="flex shrink-0 items-center gap-3">
-                <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                <span className="text-xs text-stone-400 dark:text-stone-500">
                   {formatCreatedTime(material.createdTime)}
                 </span>
                 <a

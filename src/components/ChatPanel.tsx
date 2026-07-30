@@ -68,7 +68,7 @@ function SegmentedControl<T extends string>({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex flex-wrap gap-1 rounded-full border border-zinc-200 p-1 dark:border-zinc-800">
+    <div className="flex flex-wrap gap-1 rounded-full border border-stone-200 p-1 dark:border-stone-800">
       {options.map((option) => (
         <button
           key={option.value}
@@ -78,7 +78,7 @@ function SegmentedControl<T extends string>({
           className={
             value === option.value
               ? "rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-foreground"
-              : "rounded-full px-3 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-zinc-900"
+              : "rounded-full px-3 py-1 text-xs font-medium text-stone-600 hover:bg-stone-100 disabled:opacity-50 dark:text-stone-400 dark:hover:bg-stone-900"
           }
         >
           {option.label}
@@ -114,7 +114,7 @@ function NumberChipInput({
           className={
             value === String(n)
               ? "rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-foreground"
-              : "rounded-full px-3 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-zinc-900"
+              : "rounded-full px-3 py-1 text-xs font-medium text-stone-600 hover:bg-stone-100 disabled:opacity-50 dark:text-stone-400 dark:hover:bg-stone-900"
           }
         >
           {n}
@@ -129,7 +129,7 @@ function NumberChipInput({
         disabled={disabled}
         placeholder="お任せ"
         aria-label={`${label}（自由入力、空欄でお任せ）`}
-        className="w-20 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
+        className="w-20 rounded-lg border border-stone-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-stone-700 dark:bg-stone-900"
       />
     </div>
   );
@@ -137,12 +137,12 @@ function NumberChipInput({
 
 function MarkdownMessage({ text }: { text: string }) {
   return (
-    <div className="prose-message text-sm text-zinc-800 dark:text-zinc-200">
+    <div className="prose-message text-sm text-stone-800 dark:text-stone-200">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkBreaks]}
         components={{
           p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-          strong: ({ children }) => <strong className="font-semibold text-black dark:text-zinc-50">{children}</strong>,
+          strong: ({ children }) => <strong className="font-semibold text-black dark:text-stone-50">{children}</strong>,
           a: ({ children, href }) => (
             <a
               href={href}
@@ -157,20 +157,20 @@ function MarkdownMessage({ text }: { text: string }) {
           ol: ({ children }) => <ol className="mb-2 list-decimal space-y-0.5 pl-5 last:mb-0">{children}</ol>,
           li: ({ children }) => <li>{children}</li>,
           h1: ({ children }) => (
-            <h1 className="mb-1 mt-2 font-serif text-base font-bold text-black first:mt-0 dark:text-zinc-50">
+            <h1 className="mb-1 mt-2 font-serif text-base font-bold text-black first:mt-0 dark:text-stone-50">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="mb-1 mt-2 font-serif text-sm font-bold text-black first:mt-0 dark:text-zinc-50">
+            <h2 className="mb-1 mt-2 font-serif text-sm font-bold text-black first:mt-0 dark:text-stone-50">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="mb-1 mt-2 text-sm font-bold text-black first:mt-0 dark:text-zinc-50">{children}</h3>
+            <h3 className="mb-1 mt-2 text-sm font-bold text-black first:mt-0 dark:text-stone-50">{children}</h3>
           ),
           blockquote: ({ children }) => (
-            <blockquote className="mb-2 border-l-2 border-accent/40 pl-3 text-zinc-600 last:mb-0 dark:text-zinc-400">
+            <blockquote className="mb-2 border-l-2 border-accent/40 pl-3 text-stone-600 last:mb-0 dark:text-stone-400">
               {children}
             </blockquote>
           ),
@@ -178,26 +178,26 @@ function MarkdownMessage({ text }: { text: string }) {
             className ? (
               <code className={className}>{children}</code>
             ) : (
-              <code className="rounded bg-zinc-200 px-1 py-0.5 text-xs dark:bg-zinc-800">{children}</code>
+              <code className="rounded bg-stone-200 px-1 py-0.5 text-xs dark:bg-stone-800">{children}</code>
             ),
           pre: ({ children }) => (
-            <pre className="mb-2 overflow-x-auto rounded-lg bg-zinc-900 p-3 text-xs text-zinc-100 last:mb-0">
+            <pre className="mb-2 overflow-x-auto rounded-lg bg-stone-900 p-3 text-xs text-stone-100 last:mb-0">
               {children}
             </pre>
           ),
-          hr: () => <hr className="my-2 border-zinc-200 dark:border-zinc-800" />,
+          hr: () => <hr className="my-2 border-stone-200 dark:border-stone-800" />,
           table: ({ children }) => (
             <div className="mb-2 overflow-x-auto last:mb-0">
               <table className="border-collapse text-xs">{children}</table>
             </div>
           ),
           th: ({ children }) => (
-            <th className="border border-zinc-300 bg-zinc-50 px-2 py-1 text-left font-semibold dark:border-zinc-700 dark:bg-zinc-800">
+            <th className="border border-stone-300 bg-stone-50 px-2 py-1 text-left font-semibold dark:border-stone-700 dark:bg-stone-800">
               {children}
             </th>
           ),
           td: ({ children }) => (
-            <td className="border border-zinc-300 px-2 py-1 dark:border-zinc-700">{children}</td>
+            <td className="border border-stone-300 px-2 py-1 dark:border-stone-700">{children}</td>
           ),
         }}
       >
@@ -214,7 +214,7 @@ function Avatar({ role }: { role: Message["role"] }) {
       className={
         role === "user"
           ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground"
-          : "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+          : "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-stone-200 text-xs font-semibold text-stone-600 dark:bg-stone-800 dark:text-stone-300"
       }
     >
       {role === "user" ? "先生" : "AI"}
@@ -239,7 +239,7 @@ function CopyButton({ text }: { text: string }) {
     <button
       type="button"
       onClick={handleCopy}
-      className="self-start text-xs text-zinc-400 transition-colors hover:text-accent"
+      className="self-start text-xs text-stone-400 transition-colors hover:text-accent"
     >
       {copied ? "コピーしました" : "コピー"}
     </button>
@@ -594,9 +594,9 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
   }
 
   return (
-    <section className="card flex flex-col gap-4 rounded-2xl border border-zinc-200/80 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+    <section className="card flex flex-col gap-4 rounded-2xl border border-stone-200/80 bg-white p-6 dark:border-stone-800 dark:bg-stone-950">
       <div className="flex items-center justify-between">
-        <h2 className="font-serif text-lg font-bold text-black dark:text-zinc-50">
+        <h2 className="font-serif text-lg font-bold text-black dark:text-stone-50">
           教材作成チャット
         </h2>
         {messages.length > 0 && (
@@ -604,7 +604,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
             type="button"
             onClick={handleReset}
             disabled={isSending}
-            className="text-xs text-zinc-500 underline decoration-dotted hover:text-accent disabled:opacity-50 dark:text-zinc-400"
+            className="text-xs text-stone-500 underline decoration-dotted hover:text-accent disabled:opacity-50 dark:text-stone-400"
           >
             新しい会話を始める
           </button>
@@ -616,13 +616,13 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
           <div className="flex flex-col gap-3">
             {customPrompts.length > 0 && (
               <div className="flex flex-col gap-2">
-                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">よく使う指示</p>
+                <p className="text-xs font-medium text-stone-500 dark:text-stone-400">よく使う指示</p>
                 {customPrompts.map((prompt) => (
                   <div key={prompt} className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setInput(prompt)}
-                      className="flex-1 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-left text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                      className="flex-1 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-left text-sm text-stone-700 transition-colors hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
                     >
                       {prompt}
                     </button>
@@ -630,7 +630,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
                       type="button"
                       onClick={() => handleRemoveCustomPrompt(prompt)}
                       aria-label="よく使う指示から削除"
-                      className="shrink-0 text-zinc-400 hover:text-red-500"
+                      className="shrink-0 text-stone-400 hover:text-red-500"
                     >
                       ×
                     </button>
@@ -638,7 +638,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
                 ))}
               </div>
             )}
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            <p className="text-sm text-stone-500 dark:text-stone-400">
               作成したい教材の内容を指示してください。例えば、こんな指示から試せます。
             </p>
             <div className="flex flex-col gap-2">
@@ -667,7 +667,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
             {message.role === "assistant" && <Avatar role="assistant" />}
             <div className="flex min-w-0 flex-col gap-1">
               {message.role === "assistant" && message.statuses.length > 0 && (
-                <ul className="flex flex-col gap-0.5 pl-1 text-xs text-zinc-400 dark:text-zinc-500">
+                <ul className="flex flex-col gap-0.5 pl-1 text-xs text-stone-400 dark:text-stone-500">
                   {message.statuses.map((status, statusIndex) => (
                     <li key={statusIndex}>{status}</li>
                   ))}
@@ -676,7 +676,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
               {message.role === "user" && (
                 <>
                   {message.settingsSummary && (
-                    <span className="self-end text-xs text-zinc-400 dark:text-zinc-500">
+                    <span className="self-end text-xs text-stone-400 dark:text-stone-500">
                       {message.settingsSummary}
                     </span>
                   )}
@@ -687,7 +687,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
               )}
               {message.role === "assistant" && message.content && (
                 <>
-                  <div className="break-words rounded-2xl bg-zinc-100 px-4 py-2 dark:bg-zinc-900">
+                  <div className="break-words rounded-2xl bg-stone-100 px-4 py-2 dark:bg-stone-900">
                     <MarkdownMessage text={message.content} />
                   </div>
                   {!isSending && <CopyButton text={message.content} />}
@@ -698,7 +698,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
                 message.statuses.length === 0 &&
                 isSending &&
                 index === messages.length - 1 && (
-                  <div className="rounded-2xl bg-zinc-100 px-4 py-2 text-sm text-zinc-500 dark:bg-zinc-900 dark:text-zinc-500">
+                  <div className="rounded-2xl bg-stone-100 px-4 py-2 text-sm text-stone-500 dark:bg-stone-900 dark:text-stone-500">
                     …
                   </div>
                 )}
@@ -739,17 +739,17 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="rounded-lg border border-stone-200 dark:border-stone-800">
           <button
             type="button"
             onClick={() => setSettingsPanelOpen((v) => !v)}
             className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
           >
             <span className="flex min-w-0 items-baseline gap-2">
-              <span className="shrink-0 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+              <span className="shrink-0 text-xs font-medium text-stone-500 dark:text-stone-400">
                 出題設定
               </span>
-              <span className="truncate text-xs text-zinc-600 dark:text-zinc-400">
+              <span className="truncate text-xs text-stone-600 dark:text-stone-400">
                 {buildComposerSummary()}
               </span>
             </span>
@@ -759,9 +759,9 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
           </button>
 
           {settingsPanelOpen && (
-            <div className="flex flex-col gap-2 border-t border-zinc-200 p-3 dark:border-zinc-800">
+            <div className="flex flex-col gap-2 border-t border-stone-200 p-3 dark:border-stone-800">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">出力形式</span>
+                <span className="w-20 shrink-0 text-sm text-stone-600 dark:text-stone-400">出力形式</span>
                 <SegmentedControl
                   options={OUTPUT_FORMATS.map((format) => ({ value: format, label: OUTPUT_FORMAT_LABELS[format] }))}
                   value={outputFormat}
@@ -770,7 +770,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">大問数</span>
+                <span className="w-20 shrink-0 text-sm text-stone-600 dark:text-stone-400">大問数</span>
                 <NumberChipInput
                   presets={MAJOR_QUESTION_COUNT_PRESETS}
                   value={majorQuestionCountInput}
@@ -781,7 +781,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">問題数</span>
+                <span className="w-20 shrink-0 text-sm text-stone-600 dark:text-stone-400">問題数</span>
                 <NumberChipInput
                   presets={QUESTION_COUNT_PRESETS}
                   value={questionCountInput}
@@ -792,7 +792,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
                 />
               </div>
 
-              <div className="flex flex-col gap-2 border-t border-zinc-200 pt-2 dark:border-zinc-800">
+              <div className="flex flex-col gap-2 border-t border-stone-200 pt-2 dark:border-stone-800">
                 <button
                   type="button"
                   onClick={() => setShowAdvancedSettings((v) => !v)}
@@ -806,7 +806,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
                 {showAdvancedSettings && (
                   <>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">難易度</span>
+                      <span className="w-20 shrink-0 text-sm text-stone-600 dark:text-stone-400">難易度</span>
                       <SegmentedControl
                         options={DIFFICULTIES.map((d) => ({ value: d, label: DIFFICULTY_LABELS[d] }))}
                         value={difficulty}
@@ -815,7 +815,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
                       />
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">出題形式</span>
+                      <span className="w-20 shrink-0 text-sm text-stone-600 dark:text-stone-400">出題形式</span>
                       <SegmentedControl
                         options={QUESTION_TYPES.map((t) => ({ value: t, label: QUESTION_TYPE_LABELS[t] }))}
                         value={questionType}
@@ -824,7 +824,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
                       />
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">参照ページ</span>
+                      <span className="w-20 shrink-0 text-sm text-stone-600 dark:text-stone-400">参照ページ</span>
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
@@ -834,9 +834,9 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
                           disabled={isSending}
                           placeholder="開始"
                           aria-label="参照ページ範囲の開始ページ"
-                          className="w-20 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
+                          className="w-20 rounded-lg border border-stone-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-stone-700 dark:bg-stone-900"
                         />
-                        <span className="text-sm text-zinc-500 dark:text-zinc-400">〜</span>
+                        <span className="text-sm text-stone-500 dark:text-stone-400">〜</span>
                         <input
                           type="number"
                           min={1}
@@ -845,49 +845,49 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
                           disabled={isSending}
                           placeholder="終了"
                           aria-label="参照ページ範囲の終了ページ"
-                          className="w-20 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
+                          className="w-20 rounded-lg border border-stone-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-stone-700 dark:bg-stone-900"
                         />
-                        <span className="text-sm text-zinc-500 dark:text-zinc-400">ページ</span>
+                        <span className="text-sm text-stone-500 dark:text-stone-400">ページ</span>
                       </div>
                     </div>
                     <div className="flex flex-wrap items-start gap-2">
-                      <span className="w-20 shrink-0 pt-1 text-sm text-zinc-600 dark:text-zinc-400">観点別評価</span>
+                      <span className="w-20 shrink-0 pt-1 text-sm text-stone-600 dark:text-stone-400">観点別評価</span>
                       <div className="flex flex-wrap gap-x-4 gap-y-1">
                         {EVALUATION_PERSPECTIVES.map((perspective) => (
                           <label
                             key={perspective}
-                            className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400"
+                            className="flex items-center gap-1.5 text-sm text-stone-600 dark:text-stone-400"
                           >
                             <input
                               type="checkbox"
                               checked={evaluationPerspectives.includes(perspective)}
                               onChange={() => toggleEvaluationPerspective(perspective)}
                               disabled={isSending}
-                              className="h-4 w-4 rounded border border-zinc-300 bg-white accent-accent dark:border-zinc-600 dark:bg-zinc-900"
+                              className="h-4 w-4 rounded border border-stone-300 bg-white accent-accent dark:border-stone-600 dark:bg-stone-900"
                             />
                             {EVALUATION_PERSPECTIVE_LABELS[perspective]}
                           </label>
                         ))}
                       </div>
                     </div>
-                    <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                    <label className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-400">
                       <input
                         type="checkbox"
                         checked={includeGraphOrTableQuestion}
                         onChange={(e) => setIncludeGraphOrTableQuestion(e.target.checked)}
                         disabled={isSending}
-                        className="h-4 w-4 rounded border border-zinc-300 bg-white accent-accent dark:border-zinc-600 dark:bg-zinc-900"
+                        className="h-4 w-4 rounded border border-stone-300 bg-white accent-accent dark:border-stone-600 dark:bg-stone-900"
                       />
                       グラフ・表を用いた思考力・判断力・表現力を問う問題を含める
                     </label>
                     {outputFormat !== "google_form" && (
-                      <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                      <label className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-400">
                         <input
                           type="checkbox"
                           checked={separateAnswerSheet}
                           onChange={(e) => setSeparateAnswerSheet(e.target.checked)}
                           disabled={isSending}
-                          className="h-4 w-4 rounded border border-zinc-300 bg-white accent-accent dark:border-zinc-600 dark:bg-zinc-900"
+                          className="h-4 w-4 rounded border border-stone-300 bg-white accent-accent dark:border-stone-600 dark:bg-stone-900"
                         />
                         解答・解説を別紙にする（問題と解答を改ページで分ける）
                       </label>
@@ -906,7 +906,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
           disabled={isSending}
           rows={3}
           placeholder="作成したい教材の内容を指示してください（Enterで送信、Shift+Enterで改行）"
-          className="resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
+          className="resize-none rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none disabled:opacity-50 dark:border-stone-700 dark:bg-stone-900"
         />
 
         <div className="flex items-center justify-between gap-2">
@@ -914,7 +914,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
             <button
               type="button"
               onClick={handleSaveCustomPrompt}
-              className="text-xs text-zinc-500 underline decoration-dotted hover:text-accent dark:text-zinc-400"
+              className="text-xs text-stone-500 underline decoration-dotted hover:text-accent dark:text-stone-400"
             >
               この指示をよく使う指示として保存
             </button>
