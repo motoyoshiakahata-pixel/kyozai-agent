@@ -709,105 +709,109 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
             />
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowAdvancedSettings((v) => !v)}
-            className="self-start text-xs text-accent underline decoration-dotted"
-          >
-            {showAdvancedSettings
-              ? "詳細設定を隠す"
-              : "詳細設定を表示（難易度・出題形式・参照ページ・観点別評価など）"}
-          </button>
+          <div className="flex flex-col gap-2 border-t border-zinc-200 pt-2 dark:border-zinc-800">
+            <button
+              type="button"
+              onClick={() => setShowAdvancedSettings((v) => !v)}
+              className="self-start text-xs text-accent underline decoration-dotted"
+            >
+              {showAdvancedSettings
+                ? "詳細設定を隠す"
+                : "詳細設定を表示（難易度・出題形式・参照ページ・観点別評価など）"}
+            </button>
 
-          {showAdvancedSettings && (
-            <>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">難易度</span>
-                <SegmentedControl
-                  options={DIFFICULTIES.map((d) => ({ value: d, label: DIFFICULTY_LABELS[d] }))}
-                  value={difficulty}
-                  onChange={setDifficulty}
-                  disabled={isSending}
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">出題形式</span>
-                <SegmentedControl
-                  options={QUESTION_TYPES.map((t) => ({ value: t, label: QUESTION_TYPE_LABELS[t] }))}
-                  value={questionType}
-                  onChange={setQuestionType}
-                  disabled={isSending}
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">参照ページ</span>
-                <input
-                  type="number"
-                  min={1}
-                  value={pageStart}
-                  onChange={(e) => setPageStart(e.target.value)}
-                  disabled={isSending}
-                  placeholder="開始"
-                  aria-label="参照ページ範囲の開始ページ"
-                  className="w-20 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
-                />
-                <span className="text-sm text-zinc-500 dark:text-zinc-400">〜</span>
-                <input
-                  type="number"
-                  min={1}
-                  value={pageEnd}
-                  onChange={(e) => setPageEnd(e.target.value)}
-                  disabled={isSending}
-                  placeholder="終了"
-                  aria-label="参照ページ範囲の終了ページ"
-                  className="w-20 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
-                />
-                <span className="text-sm text-zinc-500 dark:text-zinc-400">ページ</span>
-              </div>
-              <div className="flex flex-wrap items-start gap-2">
-                <span className="w-20 shrink-0 pt-1 text-sm text-zinc-600 dark:text-zinc-400">観点別評価</span>
-                <div className="flex flex-wrap gap-x-4 gap-y-1">
-                  {EVALUATION_PERSPECTIVES.map((perspective) => (
-                    <label
-                      key={perspective}
-                      className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={evaluationPerspectives.includes(perspective)}
-                        onChange={() => toggleEvaluationPerspective(perspective)}
-                        disabled={isSending}
-                        className="h-4 w-4 accent-accent"
-                      />
-                      {EVALUATION_PERSPECTIVE_LABELS[perspective]}
-                    </label>
-                  ))}
+            {showAdvancedSettings && (
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">難易度</span>
+                  <SegmentedControl
+                    options={DIFFICULTIES.map((d) => ({ value: d, label: DIFFICULTY_LABELS[d] }))}
+                    value={difficulty}
+                    onChange={setDifficulty}
+                    disabled={isSending}
+                  />
                 </div>
-              </div>
-              <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-                <input
-                  type="checkbox"
-                  checked={includeGraphOrTableQuestion}
-                  onChange={(e) => setIncludeGraphOrTableQuestion(e.target.checked)}
-                  disabled={isSending}
-                  className="h-4 w-4 accent-accent"
-                />
-                グラフ・表を用いた思考力・判断力・表現力を問う問題を含める
-              </label>
-              {outputFormat !== "google_form" && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">出題形式</span>
+                  <SegmentedControl
+                    options={QUESTION_TYPES.map((t) => ({ value: t, label: QUESTION_TYPE_LABELS[t] }))}
+                    value={questionType}
+                    onChange={setQuestionType}
+                    disabled={isSending}
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">参照ページ</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      value={pageStart}
+                      onChange={(e) => setPageStart(e.target.value)}
+                      disabled={isSending}
+                      placeholder="開始"
+                      aria-label="参照ページ範囲の開始ページ"
+                      className="w-20 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
+                    />
+                    <span className="text-sm text-zinc-500 dark:text-zinc-400">〜</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={pageEnd}
+                      onChange={(e) => setPageEnd(e.target.value)}
+                      disabled={isSending}
+                      placeholder="終了"
+                      aria-label="参照ページ範囲の終了ページ"
+                      className="w-20 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
+                    />
+                    <span className="text-sm text-zinc-500 dark:text-zinc-400">ページ</span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-start gap-2">
+                  <span className="w-20 shrink-0 pt-1 text-sm text-zinc-600 dark:text-zinc-400">観点別評価</span>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1">
+                    {EVALUATION_PERSPECTIVES.map((perspective) => (
+                      <label
+                        key={perspective}
+                        className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={evaluationPerspectives.includes(perspective)}
+                          onChange={() => toggleEvaluationPerspective(perspective)}
+                          disabled={isSending}
+                          className="h-4 w-4 rounded border border-zinc-300 bg-white accent-accent dark:border-zinc-600 dark:bg-zinc-900"
+                        />
+                        {EVALUATION_PERSPECTIVE_LABELS[perspective]}
+                      </label>
+                    ))}
+                  </div>
+                </div>
                 <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
                   <input
                     type="checkbox"
-                    checked={separateAnswerSheet}
-                    onChange={(e) => setSeparateAnswerSheet(e.target.checked)}
+                    checked={includeGraphOrTableQuestion}
+                    onChange={(e) => setIncludeGraphOrTableQuestion(e.target.checked)}
                     disabled={isSending}
-                    className="h-4 w-4 accent-accent"
+                    className="h-4 w-4 rounded border border-zinc-300 bg-white accent-accent dark:border-zinc-600 dark:bg-zinc-900"
                   />
-                  解答・解説を別紙にする（問題と解答を改ページで分ける）
+                  グラフ・表を用いた思考力・判断力・表現力を問う問題を含める
                 </label>
-              )}
-            </>
-          )}
+                {outputFormat !== "google_form" && (
+                  <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                    <input
+                      type="checkbox"
+                      checked={separateAnswerSheet}
+                      onChange={(e) => setSeparateAnswerSheet(e.target.checked)}
+                      disabled={isSending}
+                      className="h-4 w-4 rounded border border-zinc-300 bg-white accent-accent dark:border-zinc-600 dark:bg-zinc-900"
+                    />
+                    解答・解説を別紙にする（問題と解答を改ページで分ける）
+                  </label>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         <textarea
