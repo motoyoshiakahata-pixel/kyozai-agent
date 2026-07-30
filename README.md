@@ -19,9 +19,25 @@ cp .env.example .env.local
 
 - `ANTHROPIC_API_KEY`: Anthropic APIキー
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: Google OAuthクライアント情報
-- `GOOGLE_REDIRECT_URI`: OAuthコールバックURL
-- `AUTH_SECRET`: セッション/トークン暗号化用シークレット
+- `GOOGLE_REDIRECT_URI`: OAuthコールバックURL（例: `http://localhost:3000/api/auth/callback`）
+- `AUTH_SECRET`: セッション/トークン暗号化用シークレット（`openssl rand -base64 32` 等で生成）
 - `GOOGLE_DRIVE_MCP_SERVER_URL`: Google Drive MCPサーバーのURL
+
+### Google OAuthクライアントの準備
+
+1. [Google Cloud Console](https://console.cloud.google.com/) でプロジェクトを作成
+2. 「APIとサービス」→「認証情報」からOAuth 2.0 クライアントID（ウェブアプリケーション）を作成
+3. 承認済みのリダイレクトURIに `GOOGLE_REDIRECT_URI` と同じ値を登録（本番環境用URLも追加）
+4. OAuth同意画面でテストユーザーとして開発者本人のGoogleアカウントを追加（マルチユーザー対応不要のため「テスト」モードのままでよい）
+5. Google Drive APIを有効化
+
+### 認証の仕組み
+
+単一ユーザーでの利用に絞り、NextAuth等の汎用認証ライブラリは使わず、Route Handler + `jose`によるJWTセッションCookieで最小限のGoogle OAuthを実装しています（`src/lib/google-oauth.ts`, `src/lib/session.ts`）。
+
+- `/api/auth/login`: Google認証画面へリダイレクト
+- `/api/auth/callback`: 認可コードをトークンに交換し、暗号化したセッションをCookieに保存
+- `/api/auth/logout`: セッションCookieを削除
 
 ## 開発サーバーの起動
 
