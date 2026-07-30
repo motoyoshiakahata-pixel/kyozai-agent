@@ -8,7 +8,14 @@ import {
   CHAT_MAX_TOKENS,
   MCP_SERVER_NAME,
 } from "@/lib/anthropic";
-import { buildSystemPrompt, type OutputFormat } from "@/lib/prompts";
+import {
+  buildSystemPrompt,
+  DEFAULT_MATERIAL_OPTIONS,
+  type Difficulty,
+  type MaterialOptions,
+  type OutputFormat,
+  type QuestionType,
+} from "@/lib/prompts";
 import { describeMcpToolUse, type ChatStreamEvent } from "@/lib/chat-events";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +29,35 @@ interface ChatMessage {
 }
 
 const MAX_CONTINUATIONS = 3;
+
+const DIFFICULTIES: Difficulty[] = ["auto", "basic", "standard", "advanced"];
+const QUESTION_TYPES: QuestionType[] = [
+  "auto",
+  "multiple_choice",
+  "descriptive",
+  "fill_in_blank",
+];
+
+function parseMaterialOptions(body: unknown): MaterialOptions {
+  const raw = (body as { materialOptions?: Record<string, unknown> })?.materialOptions ?? {};
+
+  const questionCount =
+    typeof raw.questionCount === "number" && Number.isInteger(raw.questionCount) && raw.questionCount > 0
+      ? raw.questionCount
+      : null;
+
+  const difficulty = DIFFICULTIES.includes(raw.difficulty as Difficulty)
+    ? (raw.difficulty as Difficulty)
+    : DEFAULT_MATERIAL_OPTIONS.difficulty;
+
+  const questionType = QUESTION_TYPES.includes(raw.questionType as QuestionType)
+    ? (raw.questionType as QuestionType)
+    : DEFAULT_MATERIAL_OPTIONS.questionType;
+
+  const separateAnswerSheet = raw.separateAnswerSheet === true;
+
+  return { questionCount, difficulty, questionType, separateAnswerSheet };
+}
 
 function describeError(error: unknown): string {
   if (error instanceof Anthropic.RateLimitError) {
@@ -68,6 +104,8 @@ export async function POST(request: NextRequest) {
     return new Response("リクエストの形式が不正です。", { status: 400 });
   }
 
+  const materialOptions = parseMaterialOptions(body);
+
   const client = getAnthropicClient();
   const encoder = new TextEncoder();
 
@@ -85,7 +123,7 @@ export async function POST(request: NextRequest) {
           const mcpStream = client.beta.messages.stream({
             model: CHAT_MODEL,
             max_tokens: CHAT_MAX_TOKENS,
-            system: buildSystemPrompt(outputFormat),
+            system: buildSystemPrompt(outputFormat, materialOptions),
             messages: anthropicMessages,
             output_config: { effort: CHAT_EFFORT },
             mcp_servers: [
