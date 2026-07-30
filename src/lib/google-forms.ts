@@ -82,7 +82,8 @@ function questionToItemRequest(question: QuizQuestion, index: number) {
   };
 }
 
-const JSON_FENCE_PATTERN = /```json\s*([\s\S]*?)```/;
+// ```json だけでなく ``` json や ```JSON、言語タグなしの ``` にも対応する。
+const JSON_FENCE_PATTERN = /```\s*(?:json)?\s*([\s\S]*?)```/i;
 
 // アシスタントの回答テキストから、フォーム作成用のJSONコードブロックを取り出す。
 export function extractQuizFormJson(text: string): string | null {

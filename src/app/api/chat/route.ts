@@ -178,7 +178,9 @@ export async function POST(request: NextRequest) {
         }
         if (jsonFenceStarted) return;
 
-        const fenceIndex = rawAssistantText.indexOf("```json");
+        // モデルが ```json ではなく ``` json / ```JSON などの表記を
+        // 使う場合もあるため、コードフェンス自体（```）で判定する。
+        const fenceIndex = rawAssistantText.indexOf("```");
         if (fenceIndex === -1) {
           sendEvent({ type: "delta", text: delta });
           return;

@@ -91,12 +91,14 @@ function NumberChipInput({
   onChange,
   disabled,
   unit,
+  label,
 }: {
   presets: number[];
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
   unit: string;
+  label: string;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1">
@@ -123,6 +125,7 @@ function NumberChipInput({
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         placeholder="お任せ"
+        aria-label={`${label}（自由入力、空欄でお任せ）`}
         className="w-20 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
       />
     </div>
@@ -691,6 +694,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
               onChange={setMajorQuestionCountInput}
               disabled={isSending}
               unit=""
+              label="大問数"
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -701,6 +705,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
               onChange={setQuestionCountInput}
               disabled={isSending}
               unit="問"
+              label="問題数"
             />
           </div>
 
@@ -743,6 +748,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
                   onChange={(e) => setPageStart(e.target.value)}
                   disabled={isSending}
                   placeholder="開始"
+                  aria-label="参照ページ範囲の開始ページ"
                   className="w-20 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
                 />
                 <span className="text-sm text-zinc-500 dark:text-zinc-400">〜</span>
@@ -753,6 +759,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
                   onChange={(e) => setPageEnd(e.target.value)}
                   disabled={isSending}
                   placeholder="終了"
+                  aria-label="参照ページ範囲の終了ページ"
                   className="w-20 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
                 />
                 <span className="text-sm text-zinc-500 dark:text-zinc-400">ページ</span>
@@ -787,16 +794,18 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
                 />
                 グラフ・表を用いた思考力・判断力・表現力を問う問題を含める
               </label>
-              <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-                <input
-                  type="checkbox"
-                  checked={separateAnswerSheet}
-                  onChange={(e) => setSeparateAnswerSheet(e.target.checked)}
-                  disabled={isSending}
-                  className="h-4 w-4 accent-accent"
-                />
-                解答・解説を別紙にする（問題と解答を改ページで分ける）
-              </label>
+              {outputFormat !== "google_form" && (
+                <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                  <input
+                    type="checkbox"
+                    checked={separateAnswerSheet}
+                    onChange={(e) => setSeparateAnswerSheet(e.target.checked)}
+                    disabled={isSending}
+                    className="h-4 w-4 accent-accent"
+                  />
+                  解答・解説を別紙にする（問題と解答を改ページで分ける）
+                </label>
+              )}
             </>
           )}
         </div>
