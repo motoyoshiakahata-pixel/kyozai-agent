@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { OUTPUT_FORMAT_LABELS, type OutputFormat } from "@/lib/prompts";
 import type { ChatStreamEvent } from "@/lib/chat-events";
 
@@ -18,6 +18,11 @@ export function ChatPanel() {
   const [outputFormat, setOutputFormat] = useState<OutputFormat>("google_doc");
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages]);
 
   function updateLastAssistantMessage(update: (message: Message) => Message) {
     setMessages((current) => {
@@ -28,11 +33,7 @@ export function ChatPanel() {
     });
   }
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    const text = input.trim();
-    if (!text || isSending) return;
-
+  async function sendMessage(text: string) {
     setError(null);
     const nextMessages: Message[] = [
       ...messages,
@@ -100,13 +101,46 @@ export function ChatPanel() {
     }
   }
 
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    const text = input.trim();
+    if (!text || isSending) return;
+    void sendMessage(text);
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      const text = input.trim();
+      if (!text || isSending) return;
+      void sendMessage(text);
+    }
+  }
+
+  function handleReset() {
+    setMessages([]);
+    setError(null);
+  }
+
   return (
     <section className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
-      <h2 className="text-lg font-semibold text-black dark:text-zinc-50">
-        教材作成チャット
-      </h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-black dark:text-zinc-50">
+          教材作成チャット
+        </h2>
+        {messages.length > 0 && (
+          <button
+            type="button"
+            onClick={handleReset}
+            disabled={isSending}
+            className="text-xs text-zinc-500 underline decoration-dotted hover:text-zinc-700 disabled:opacity-50 dark:text-zinc-400 dark:hover:text-zinc-200"
+          >
+            新しい会話を始める
+          </button>
+        )}
+      </div>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex max-h-[28rem] flex-col gap-3 overflow-y-auto">
         {messages.length === 0 && (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             例：「現代社会の過去問を参考に、公共の『政治参加と選挙』の単元で選択式の小テストを10問作成してください」
@@ -150,6 +184,7 @@ export function ChatPanel() {
               )}
           </div>
         ))}
+        <div ref={messagesEndRef} />
       </div>
 
       {error && (
@@ -167,7 +202,8 @@ export function ChatPanel() {
             id="output-format"
             value={outputFormat}
             onChange={(e) => setOutputFormat(e.target.value as OutputFormat)}
-            className="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            disabled={isSending}
+            className="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
           >
             {OUTPUT_FORMATS.map((format) => (
               <option key={format} value={format}>
@@ -180,9 +216,11 @@ export function ChatPanel() {
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={isSending}
           rows={3}
-          placeholder="作成したい教材の内容を指示してください"
-          className="resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          placeholder="作成したい教材の内容を指示してください（Enterで送信、Shift+Enterで改行）"
+          className="resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
         />
 
         <button

@@ -22,7 +22,24 @@ const REFERENCE_FOLDERS = [
   "過去問アーカイブ（現代社会：センター試験1997〜2020年、共通テスト2021年〜）",
 ];
 
+function getTodayInJapan(): string {
+  const parts = new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}${get("month")}${get("day")}`;
+}
+
 export function buildSystemPrompt(outputFormat: OutputFormat): string {
+  const today = getTodayInJapan();
+  const namingExample =
+    outputFormat === "pdf"
+      ? `${today}_公共_政治参加と選挙_小テスト.pdf`
+      : `${today}_公共_政治参加と選挙_小テスト`;
+
   return `あなたは高校公民科「公共」を担当する教員を支援する教材作成アシスタントです。
 
 ## 役割
@@ -36,8 +53,16 @@ ${REFERENCE_FOLDERS.map((f) => `- ${f}`).join("\n")}
 ## 出力形式
 ${OUTPUT_FORMAT_INSTRUCTIONS[outputFormat]}
 
-## 保存先
-作成した教材は、マイドライブ直下の「作成教材」フォルダに保存してください。フォルダが存在しない場合は作成してください。ファイル名は内容・単元・作成日が分かる名前にしてください。
+## 保存先とファイル命名規則
+作成した教材は、マイドライブ直下の「作成教材」フォルダに保存してください。フォルダが存在しない場合は作成してください。
+
+ファイル名は次の形式にしてください（Googleドキュメント／スプレッドシートには拡張子を付けず、PDFのみ\`.pdf\`を付与）。
+
+\`{作成日:YYYYMMDD}_公共_{単元名}_{教材種別}\`
+
+例（本日は${today}）: ${namingExample}
+
+単元名・教材種別は指示内容から適切に判断してください。同名ファイルが既に存在する場合は末尾に連番（_2など）を付けて区別してください。
 
 ## 進め方
 - 作業を始める前に、参照する資料が十分か確認してください。情報が不足している場合は、作業を進めながら教員に確認してください。

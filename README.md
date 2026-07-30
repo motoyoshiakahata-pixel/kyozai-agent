@@ -60,6 +60,15 @@ npm run dev
 - Anthropic API (Claude)
 - Google OAuth / Google Drive API (MCP経由)
 
-## デプロイ
+## デプロイ（Vercel無料枠）
 
-Vercel無料枠でのホスティングを想定しています。
+1. GitHubリポジトリをVercelにインポートする（Frameworkは自動検出されるはず）
+2. Vercelプロジェクトの Settings → Environment Variables に `.env.example` と同じ変数を設定する
+   - `GOOGLE_REDIRECT_URI` は本番URL（例: `https://<your-app>.vercel.app/api/auth/callback`）にする
+3. Google Cloud ConsoleのOAuthクライアントの「承認済みのリダイレクトURI」に、本番の `GOOGLE_REDIRECT_URI` を追加する
+4. デプロイ後、本番URLにアクセスしてGoogleログイン〜教材作成チャットが動作することを確認する
+
+### 無料（Hobby）プランの制約
+
+- Serverless Functionsの実行時間には上限があるため、`/api/chat` には `maxDuration = 60`（秒）を設定しています。教材生成に時間がかかりGoogleドライブ操作を伴う場合、60秒を超えるとタイムアウトする可能性があります。頻繁にタイムアウトする場合はVercelのProプランへの変更や、生成指示を分割する運用を検討してください。
+- Anthropic APIの呼び出しはClaude Proのプログラム利用クレジット（月20ドル相当）の範囲内を想定しており、追加課金は有効化していません。想定より頻度・分量が多い場合は`src/lib/anthropic.ts`の`CHAT_EFFORT`（既定: `medium`）を`low`に下げるなどしてコストを調整してください。

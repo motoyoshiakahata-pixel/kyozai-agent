@@ -12,6 +12,9 @@ import { buildSystemPrompt, type OutputFormat } from "@/lib/prompts";
 import { describeMcpToolUse, type ChatStreamEvent } from "@/lib/chat-events";
 
 export const dynamic = "force-dynamic";
+// Vercel Hobby(無料)プランで設定可能な上限。教材生成が長時間化する場合は
+// Proプランへの変更や生成対象の分割を検討する。
+export const maxDuration = 60;
 
 interface ChatMessage {
   role: "user" | "assistant";
