@@ -38,6 +38,20 @@ const QUICK_PROMPTS = [
   "直近の共通テストの傾向を踏まえて、公共の総復習プリントを作成してください",
 ];
 
+const DRAFT_STORAGE_KEY = "kyozai-agent:chat-draft";
+const CUSTOM_PROMPTS_STORAGE_KEY = "kyozai-agent:custom-prompts";
+const MAX_CUSTOM_PROMPTS = 10;
+
+interface PersistedDraft {
+  messages: Message[];
+  input: string;
+  outputFormat: OutputFormat;
+  questionCountOption: QuestionCountOption;
+  difficulty: Difficulty;
+  questionType: QuestionType;
+  separateAnswerSheet: boolean;
+}
+
 function SegmentedControl<T extends string>({
   options,
   value,
@@ -142,12 +156,14 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
   const [difficulty, setDifficulty] = useState<Difficulty>("auto");
   const [questionType, setQuestionType] = useState<QuestionType>("auto");
   const [separateAnswerSheet, setSeparateAnswerSheet] = useState(false);
+  const [customPrompts, setCustomPrompts] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUserText, setLastUserText] = useState<string | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const hasLoadedDraftRef = useRef(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -160,6 +176,79 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
       setElapsedSeconds((s) => s + 1);
     }, 1000);
     return () => clearInterval(interval);
+  }, [isSending]);
+
+  // 誤ってタブを閉じても作業中の会話を失わないよう、下書きを復元・保存する。
+  useEffect(() => {
+    try {
+      const rawDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
+      if (rawDraft) {
+        const draft = JSON.parse(rawDraft) as Partial<PersistedDraft>;
+        if (Array.isArray(draft.messages)) setMessages(draft.messages);
+        if (typeof draft.input === "string") setInput(draft.input);
+        if (draft.outputFormat && OUTPUT_FORMATS.includes(draft.outputFormat)) {
+          setOutputFormat(draft.outputFormat);
+        }
+        if (draft.questionCountOption && QUESTION_COUNT_OPTIONS.some((o) => o.value === draft.questionCountOption)) {
+          setQuestionCountOption(draft.questionCountOption);
+        }
+        if (draft.difficulty && DIFFICULTIES.includes(draft.difficulty)) setDifficulty(draft.difficulty);
+        if (draft.questionType && QUESTION_TYPES.includes(draft.questionType)) setQuestionType(draft.questionType);
+        if (typeof draft.separateAnswerSheet === "boolean") setSeparateAnswerSheet(draft.separateAnswerSheet);
+      }
+
+      const rawPrompts = localStorage.getItem(CUSTOM_PROMPTS_STORAGE_KEY);
+      if (rawPrompts) {
+        const prompts: unknown = JSON.parse(rawPrompts);
+        if (Array.isArray(prompts)) {
+          setCustomPrompts(prompts.filter((p): p is string => typeof p === "string"));
+        }
+      }
+    } catch {
+      // 破損した保存データは無視する
+    }
+    hasLoadedDraftRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedDraftRef.current) return;
+    const id = setTimeout(() => {
+      try {
+        const draft: PersistedDraft = {
+          messages,
+          input,
+          outputFormat,
+          questionCountOption,
+          difficulty,
+          questionType,
+          separateAnswerSheet,
+        };
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+      } catch {
+        // ストレージ容量超過などは無視する
+      }
+    }, 300);
+    return () => clearTimeout(id);
+  }, [messages, input, outputFormat, questionCountOption, difficulty, questionType, separateAnswerSheet]);
+
+  useEffect(() => {
+    if (!hasLoadedDraftRef.current) return;
+    try {
+      localStorage.setItem(CUSTOM_PROMPTS_STORAGE_KEY, JSON.stringify(customPrompts));
+    } catch {
+      // ストレージ容量超過などは無視する
+    }
+  }, [customPrompts]);
+
+  // 生成中にタブを閉じて再試行が必要になるのを防ぐ。
+  useEffect(() => {
+    if (!isSending) return;
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [isSending]);
 
   function updateLastAssistantMessage(update: (message: Message) => Message) {
@@ -302,6 +391,16 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
     abortControllerRef.current?.abort();
   }
 
+  function handleSaveCustomPrompt() {
+    const text = input.trim();
+    if (!text || customPrompts.includes(text)) return;
+    setCustomPrompts((prev) => [text, ...prev].slice(0, MAX_CUSTOM_PROMPTS));
+  }
+
+  function handleRemoveCustomPrompt(prompt: string) {
+    setCustomPrompts((prev) => prev.filter((p) => p !== prompt));
+  }
+
   return (
     <section className="card flex flex-col gap-4 rounded-2xl border border-zinc-200/80 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
       <div className="flex items-center justify-between">
@@ -323,6 +422,30 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
       <div className="flex max-h-[28rem] flex-col gap-3 overflow-y-auto">
         {messages.length === 0 && (
           <div className="flex flex-col gap-3">
+            {customPrompts.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">よく使う指示</p>
+                {customPrompts.map((prompt) => (
+                  <div key={prompt} className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setInput(prompt)}
+                      className="flex-1 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-left text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                    >
+                      {prompt}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveCustomPrompt(prompt)}
+                      aria-label="よく使う指示から削除"
+                      className="shrink-0 text-zinc-400 hover:text-red-500"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
               作成したい教材の内容を指示してください。例えば、こんな指示から試せます。
             </p>
@@ -486,13 +609,26 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
           className="resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
         />
 
-        <button
-          type="submit"
-          disabled={isSending || !input.trim()}
-          className="self-end rounded-full bg-accent px-5 py-2 text-sm font-medium text-accent-foreground shadow-sm transition-colors hover:brightness-110 disabled:opacity-50"
-        >
-          {isSending ? "作成中…" : "送信"}
-        </button>
+        <div className="flex items-center justify-between gap-2">
+          {input.trim() && !customPrompts.includes(input.trim()) ? (
+            <button
+              type="button"
+              onClick={handleSaveCustomPrompt}
+              className="text-xs text-zinc-500 underline decoration-dotted hover:text-accent dark:text-zinc-400"
+            >
+              この指示をよく使う指示として保存
+            </button>
+          ) : (
+            <span />
+          )}
+          <button
+            type="submit"
+            disabled={isSending || !input.trim()}
+            className="rounded-full bg-accent px-5 py-2 text-sm font-medium text-accent-foreground shadow-sm transition-colors hover:brightness-110 disabled:opacity-50"
+          >
+            {isSending ? "作成中…" : "送信"}
+          </button>
+        </div>
       </form>
     </section>
   );
