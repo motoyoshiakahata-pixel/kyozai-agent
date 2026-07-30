@@ -25,15 +25,8 @@ const DIFFICULTIES = Object.keys(DIFFICULTY_LABELS) as Difficulty[];
 const QUESTION_TYPES = Object.keys(QUESTION_TYPE_LABELS) as QuestionType[];
 const EVALUATION_PERSPECTIVES = Object.keys(EVALUATION_PERSPECTIVE_LABELS) as EvaluationPerspective[];
 
-type QuestionCountOption = "auto" | "5" | "10" | "15" | "20";
-
-const QUESTION_COUNT_OPTIONS: { value: QuestionCountOption; label: string }[] = [
-  { value: "auto", label: "お任せ" },
-  { value: "5", label: "5問" },
-  { value: "10", label: "10問" },
-  { value: "15", label: "15問" },
-  { value: "20", label: "20問" },
-];
+const QUESTION_COUNT_PRESETS = [5, 10, 15, 20];
+const MAJOR_QUESTION_COUNT_PRESETS = [2, 3, 4, 5];
 
 const QUICK_PROMPTS = [
   "現代社会の過去問を参考に、公共の「政治参加と選挙」の単元で選択式の小テストを10問作成してください",
@@ -49,7 +42,8 @@ interface PersistedDraft {
   messages: Message[];
   input: string;
   outputFormat: OutputFormat;
-  questionCountOption: QuestionCountOption;
+  questionCountInput: string;
+  majorQuestionCountInput: string;
   difficulty: Difficulty;
   questionType: QuestionType;
   separateAnswerSheet: boolean;
@@ -87,6 +81,50 @@ function SegmentedControl<T extends string>({
           {option.label}
         </button>
       ))}
+    </div>
+  );
+}
+
+function NumberChipInput({
+  presets,
+  value,
+  onChange,
+  disabled,
+  unit,
+}: {
+  presets: number[];
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  unit: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {presets.map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(String(n))}
+          disabled={disabled}
+          className={
+            value === String(n)
+              ? "rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-foreground"
+              : "rounded-full px-3 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-zinc-900"
+          }
+        >
+          {n}
+          {unit}
+        </button>
+      ))}
+      <input
+        type="number"
+        min={1}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        placeholder="お任せ"
+        className="w-20 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
+      />
     </div>
   );
 }
@@ -159,7 +197,9 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [outputFormat, setOutputFormat] = useState<OutputFormat>("google_doc");
-  const [questionCountOption, setQuestionCountOption] = useState<QuestionCountOption>("auto");
+  const [questionCountInput, setQuestionCountInput] = useState("");
+  const [majorQuestionCountInput, setMajorQuestionCountInput] = useState("");
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [difficulty, setDifficulty] = useState<Difficulty>("auto");
   const [questionType, setQuestionType] = useState<QuestionType>("auto");
   const [separateAnswerSheet, setSeparateAnswerSheet] = useState(false);
@@ -200,8 +240,9 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
         if (draft.outputFormat && OUTPUT_FORMATS.includes(draft.outputFormat)) {
           setOutputFormat(draft.outputFormat);
         }
-        if (draft.questionCountOption && QUESTION_COUNT_OPTIONS.some((o) => o.value === draft.questionCountOption)) {
-          setQuestionCountOption(draft.questionCountOption);
+        if (typeof draft.questionCountInput === "string") setQuestionCountInput(draft.questionCountInput);
+        if (typeof draft.majorQuestionCountInput === "string") {
+          setMajorQuestionCountInput(draft.majorQuestionCountInput);
         }
         if (draft.difficulty && DIFFICULTIES.includes(draft.difficulty)) setDifficulty(draft.difficulty);
         if (draft.questionType && QUESTION_TYPES.includes(draft.questionType)) setQuestionType(draft.questionType);
@@ -218,6 +259,16 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
             ),
           );
         }
+
+        const restoredHasAdvancedSettings =
+          (!!draft.difficulty && draft.difficulty !== "auto") ||
+          (!!draft.questionType && draft.questionType !== "auto") ||
+          (typeof draft.pageStart === "string" && draft.pageStart.trim() !== "") ||
+          (typeof draft.pageEnd === "string" && draft.pageEnd.trim() !== "") ||
+          (Array.isArray(draft.evaluationPerspectives) && draft.evaluationPerspectives.length > 0) ||
+          draft.includeGraphOrTableQuestion === true ||
+          draft.separateAnswerSheet === true;
+        if (restoredHasAdvancedSettings) setShowAdvancedSettings(true);
       }
 
       const rawPrompts = localStorage.getItem(CUSTOM_PROMPTS_STORAGE_KEY);
@@ -241,7 +292,8 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
           messages,
           input,
           outputFormat,
-          questionCountOption,
+          questionCountInput,
+          majorQuestionCountInput,
           difficulty,
           questionType,
           separateAnswerSheet,
@@ -260,7 +312,8 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
     messages,
     input,
     outputFormat,
-    questionCountOption,
+    questionCountInput,
+    majorQuestionCountInput,
     difficulty,
     questionType,
     separateAnswerSheet,
@@ -305,6 +358,11 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
     );
   }
 
+  function parsePositiveInt(value: string): number | null {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  }
+
   function parsedPageRange(): { start: number; end: number } | null {
     const start = Number.parseInt(pageStart, 10);
     const end = Number.parseInt(pageEnd, 10);
@@ -316,7 +374,10 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
 
   function buildSettingsSummary(): string | undefined {
     const parts: string[] = [];
-    if (questionCountOption !== "auto") parts.push(`${questionCountOption}問`);
+    const majorQuestionCount = parsePositiveInt(majorQuestionCountInput);
+    if (majorQuestionCount) parts.push(`大問${majorQuestionCount}つ`);
+    const questionCount = parsePositiveInt(questionCountInput);
+    if (questionCount) parts.push(`${questionCount}問`);
     if (difficulty !== "auto") parts.push(DIFFICULTY_LABELS[difficulty]);
     if (questionType !== "auto") parts.push(QUESTION_TYPE_LABELS[questionType]);
     if (separateAnswerSheet) parts.push("解答別紙");
@@ -351,7 +412,8 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
           messages: nextMessages.map(({ role, content }) => ({ role, content })),
           outputFormat,
           materialOptions: {
-            questionCount: questionCountOption === "auto" ? null : Number(questionCountOption),
+            questionCount: parsePositiveInt(questionCountInput),
+            majorQuestionCount: parsePositiveInt(majorQuestionCountInput),
             difficulty,
             questionType,
             separateAnswerSheet,
@@ -622,95 +684,121 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">大問数</span>
+            <NumberChipInput
+              presets={MAJOR_QUESTION_COUNT_PRESETS}
+              value={majorQuestionCountInput}
+              onChange={setMajorQuestionCountInput}
+              disabled={isSending}
+              unit=""
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
             <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">問題数</span>
-            <SegmentedControl
-              options={QUESTION_COUNT_OPTIONS}
-              value={questionCountOption}
-              onChange={setQuestionCountOption}
+            <NumberChipInput
+              presets={QUESTION_COUNT_PRESETS}
+              value={questionCountInput}
+              onChange={setQuestionCountInput}
               disabled={isSending}
+              unit="問"
             />
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">難易度</span>
-            <SegmentedControl
-              options={DIFFICULTIES.map((d) => ({ value: d, label: DIFFICULTY_LABELS[d] }))}
-              value={difficulty}
-              onChange={setDifficulty}
-              disabled={isSending}
-            />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">出題形式</span>
-            <SegmentedControl
-              options={QUESTION_TYPES.map((t) => ({ value: t, label: QUESTION_TYPE_LABELS[t] }))}
-              value={questionType}
-              onChange={setQuestionType}
-              disabled={isSending}
-            />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">参照ページ</span>
-            <input
-              type="number"
-              min={1}
-              value={pageStart}
-              onChange={(e) => setPageStart(e.target.value)}
-              disabled={isSending}
-              placeholder="開始"
-              className="w-20 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
-            />
-            <span className="text-sm text-zinc-500 dark:text-zinc-400">〜</span>
-            <input
-              type="number"
-              min={1}
-              value={pageEnd}
-              onChange={(e) => setPageEnd(e.target.value)}
-              disabled={isSending}
-              placeholder="終了"
-              className="w-20 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
-            />
-            <span className="text-sm text-zinc-500 dark:text-zinc-400">ページ</span>
-          </div>
-          <div className="flex flex-wrap items-start gap-2">
-            <span className="w-20 shrink-0 pt-1 text-sm text-zinc-600 dark:text-zinc-400">観点別評価</span>
-            <div className="flex flex-wrap gap-x-4 gap-y-1">
-              {EVALUATION_PERSPECTIVES.map((perspective) => (
-                <label
-                  key={perspective}
-                  className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400"
-                >
-                  <input
-                    type="checkbox"
-                    checked={evaluationPerspectives.includes(perspective)}
-                    onChange={() => toggleEvaluationPerspective(perspective)}
-                    disabled={isSending}
-                    className="h-4 w-4 accent-accent"
-                  />
-                  {EVALUATION_PERSPECTIVE_LABELS[perspective]}
-                </label>
-              ))}
-            </div>
-          </div>
-          <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-            <input
-              type="checkbox"
-              checked={includeGraphOrTableQuestion}
-              onChange={(e) => setIncludeGraphOrTableQuestion(e.target.checked)}
-              disabled={isSending}
-              className="h-4 w-4 accent-accent"
-            />
-            グラフ・表を用いた思考力・判断力・表現力を問う問題を含める
-          </label>
-          <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-            <input
-              type="checkbox"
-              checked={separateAnswerSheet}
-              onChange={(e) => setSeparateAnswerSheet(e.target.checked)}
-              disabled={isSending}
-              className="h-4 w-4 accent-accent"
-            />
-            解答・解説を別紙にする（問題と解答を改ページで分ける）
-          </label>
+
+          <button
+            type="button"
+            onClick={() => setShowAdvancedSettings((v) => !v)}
+            className="self-start text-xs text-accent underline decoration-dotted"
+          >
+            {showAdvancedSettings
+              ? "詳細設定を隠す"
+              : "詳細設定を表示（難易度・出題形式・参照ページ・観点別評価など）"}
+          </button>
+
+          {showAdvancedSettings && (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">難易度</span>
+                <SegmentedControl
+                  options={DIFFICULTIES.map((d) => ({ value: d, label: DIFFICULTY_LABELS[d] }))}
+                  value={difficulty}
+                  onChange={setDifficulty}
+                  disabled={isSending}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">出題形式</span>
+                <SegmentedControl
+                  options={QUESTION_TYPES.map((t) => ({ value: t, label: QUESTION_TYPE_LABELS[t] }))}
+                  value={questionType}
+                  onChange={setQuestionType}
+                  disabled={isSending}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">参照ページ</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={pageStart}
+                  onChange={(e) => setPageStart(e.target.value)}
+                  disabled={isSending}
+                  placeholder="開始"
+                  className="w-20 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
+                />
+                <span className="text-sm text-zinc-500 dark:text-zinc-400">〜</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={pageEnd}
+                  onChange={(e) => setPageEnd(e.target.value)}
+                  disabled={isSending}
+                  placeholder="終了"
+                  className="w-20 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
+                />
+                <span className="text-sm text-zinc-500 dark:text-zinc-400">ページ</span>
+              </div>
+              <div className="flex flex-wrap items-start gap-2">
+                <span className="w-20 shrink-0 pt-1 text-sm text-zinc-600 dark:text-zinc-400">観点別評価</span>
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  {EVALUATION_PERSPECTIVES.map((perspective) => (
+                    <label
+                      key={perspective}
+                      className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={evaluationPerspectives.includes(perspective)}
+                        onChange={() => toggleEvaluationPerspective(perspective)}
+                        disabled={isSending}
+                        className="h-4 w-4 accent-accent"
+                      />
+                      {EVALUATION_PERSPECTIVE_LABELS[perspective]}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                <input
+                  type="checkbox"
+                  checked={includeGraphOrTableQuestion}
+                  onChange={(e) => setIncludeGraphOrTableQuestion(e.target.checked)}
+                  disabled={isSending}
+                  className="h-4 w-4 accent-accent"
+                />
+                グラフ・表を用いた思考力・判断力・表現力を問う問題を含める
+              </label>
+              <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                <input
+                  type="checkbox"
+                  checked={separateAnswerSheet}
+                  onChange={(e) => setSeparateAnswerSheet(e.target.checked)}
+                  disabled={isSending}
+                  className="h-4 w-4 accent-accent"
+                />
+                解答・解説を別紙にする（問題と解答を改ページで分ける）
+              </label>
+            </>
+          )}
         </div>
 
         <textarea

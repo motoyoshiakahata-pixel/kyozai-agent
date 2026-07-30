@@ -65,6 +65,13 @@ function parseMaterialOptions(body: unknown): MaterialOptions {
       ? raw.questionCount
       : null;
 
+  const majorQuestionCount =
+    typeof raw.majorQuestionCount === "number" &&
+    Number.isInteger(raw.majorQuestionCount) &&
+    raw.majorQuestionCount > 0
+      ? raw.majorQuestionCount
+      : null;
+
   const difficulty = DIFFICULTIES.includes(raw.difficulty as Difficulty)
     ? (raw.difficulty as Difficulty)
     : DEFAULT_MATERIAL_OPTIONS.difficulty;
@@ -85,6 +92,7 @@ function parseMaterialOptions(body: unknown): MaterialOptions {
 
   return {
     questionCount,
+    majorQuestionCount,
     difficulty,
     questionType,
     separateAnswerSheet,

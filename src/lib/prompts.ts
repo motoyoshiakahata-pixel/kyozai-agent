@@ -70,6 +70,7 @@ export interface PageRange {
 
 export interface MaterialOptions {
   questionCount: number | null;
+  majorQuestionCount: number | null;
   difficulty: Difficulty;
   questionType: QuestionType;
   separateAnswerSheet: boolean;
@@ -80,6 +81,7 @@ export interface MaterialOptions {
 
 export const DEFAULT_MATERIAL_OPTIONS: MaterialOptions = {
   questionCount: null,
+  majorQuestionCount: null,
   difficulty: "auto",
   questionType: "auto",
   separateAnswerSheet: false,
@@ -92,8 +94,14 @@ function buildQuestionSettingsSection(options: MaterialOptions): string {
   const lines: string[] = [];
 
   lines.push(
+    options.majorQuestionCount
+      ? `- 大問数: ${options.majorQuestionCount}（この数の大問に分けて構成し、各大問に適切な数の小問を配置する）`
+      : "- 大問数: 指定なし（内容に応じて適切な構成にする。1つの大問にまとめてもよい）",
+  );
+
+  lines.push(
     options.questionCount
-      ? `- 問題数: ${options.questionCount}問（指定がない限りこの数で作成する）`
+      ? `- 問題数（小問の合計）: ${options.questionCount}問（大問数の指定がある場合は、大問間で適切に配分して合計がこの数になるようにする）`
       : "- 問題数: 指示内容から適切な数を判断する",
   );
 
