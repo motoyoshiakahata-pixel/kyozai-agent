@@ -3,14 +3,22 @@
 import { useState } from "react";
 import { ChatPanel } from "@/components/ChatPanel";
 import { MaterialsPanel } from "@/components/MaterialsPanel";
+import { ReferenceFoldersCard } from "@/components/ReferenceFoldersCard";
 
-export function Workspace() {
+interface WorkspaceProps {
+  referenceFolders: string[];
+}
+
+export function Workspace({ referenceFolders }: WorkspaceProps) {
   const [refreshSignal, setRefreshSignal] = useState(0);
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
       <ChatPanel onMaterialCreated={() => setRefreshSignal((n) => n + 1)} />
-      <MaterialsPanel refreshSignal={refreshSignal} />
+      <div className="flex flex-col gap-8">
+        <ReferenceFoldersCard folders={referenceFolders} />
+        <MaterialsPanel refreshSignal={refreshSignal} />
+      </div>
     </div>
   );
 }

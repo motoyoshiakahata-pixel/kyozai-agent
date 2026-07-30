@@ -545,7 +545,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
         )}
       </div>
 
-      <div className="flex max-h-[28rem] flex-col gap-3 overflow-y-auto">
+      <div className="flex max-h-[28rem] flex-col gap-3 overflow-y-auto lg:max-h-[36rem]">
         {messages.length === 0 && (
           <div className="flex flex-col gap-3">
             {customPrompts.length > 0 && (
