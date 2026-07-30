@@ -45,6 +45,10 @@ cp .env.example .env.local
 
 `GOOGLE_DRIVE_MCP_SERVER_URL` にはGoogle Drive操作用のMCPサーバー（Streamable HTTP）のURLを設定してください。
 
+### 作成履歴パネル
+
+`/api/materials` がGoogle Drive API（v3）を直接呼び出し、マイドライブ直下の「作成教材」フォルダ内のファイルを作成日時順に取得します（`src/lib/google-drive.ts`）。チャット画面下の作成履歴パネル（`src/components/MaterialsPanel.tsx`）に表示され、教材作成が完了するたびに自動更新されます。
+
 ## 開発サーバーの起動
 
 ```bash

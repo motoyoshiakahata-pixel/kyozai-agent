@@ -78,12 +78,17 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-export function ChatPanel() {
+interface ChatPanelProps {
+  onMaterialCreated?: () => void;
+}
+
+export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [outputFormat, setOutputFormat] = useState<OutputFormat>("google_doc");
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastUserText, setLastUserText] = useState<string | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -112,6 +117,7 @@ export function ChatPanel() {
 
   async function sendMessage(text: string) {
     setError(null);
+    setLastUserText(text);
     const nextMessages: Message[] = [
       ...messages,
       { role: "user", content: text, statuses: [] },
@@ -122,6 +128,7 @@ export function ChatPanel() {
 
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
+    let hadError = false;
 
     try {
       const response = await fetch("/api/chat", {
@@ -171,6 +178,7 @@ export function ChatPanel() {
               statuses: [...m.statuses, event.text],
             }));
           } else if (event.type === "error") {
+            hadError = true;
             setError(event.text);
           }
         }
@@ -182,12 +190,19 @@ export function ChatPanel() {
           statuses: [...m.statuses, "生成を中止しました。"],
         }));
       } else {
+        hadError = true;
         setError(err instanceof Error ? err.message : "エラーが発生しました。");
       }
     } finally {
       setIsSending(false);
       abortControllerRef.current = null;
+      if (!hadError) onMaterialCreated?.();
     }
+  }
+
+  function handleRetry() {
+    if (!lastUserText || isSending) return;
+    void sendMessage(lastUserText);
   }
 
   function handleSubmit(event: FormEvent) {
@@ -216,9 +231,9 @@ export function ChatPanel() {
   }
 
   return (
-    <section className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+    <section className="card flex flex-col gap-4 rounded-2xl border border-zinc-200/80 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-black dark:text-zinc-50">
+        <h2 className="font-serif text-lg font-bold text-black dark:text-zinc-50">
           教材作成チャット
         </h2>
         {messages.length > 0 && (
@@ -314,9 +329,19 @@ export function ChatPanel() {
       )}
 
       {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-          {error}
-        </p>
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+          <p>{error}</p>
+          {lastUserText && (
+            <button
+              type="button"
+              onClick={handleRetry}
+              disabled={isSending}
+              className="shrink-0 rounded-full border border-red-300 px-3 py-1 text-xs font-medium hover:bg-red-100 disabled:opacity-50 dark:border-red-800 dark:hover:bg-red-900"
+            >
+              再試行
+            </button>
+          )}
+        </div>
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
