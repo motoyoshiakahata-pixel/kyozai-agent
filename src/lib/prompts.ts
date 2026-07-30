@@ -17,6 +17,15 @@ const OUTPUT_FORMAT_INSTRUCTIONS: Record<OutputFormat, string> = {
     "Googleフォームとして自動採点式の小テストを作成してください。フォームの作成自体はシステムが行うため、指定されたJSON形式で設問データを出力してください。",
 };
 
+// 内容確定前のプレビュー段階で、最終的な出力形式に合わせてチャット上の
+// 提示方法をどう整えるべきかのヒント（google_formはこの段階を使わない）。
+const OUTPUT_FORMAT_DRAFT_HINTS: Record<Exclude<OutputFormat, "google_form">, string> = {
+  google_doc: "後でGoogleドキュメントとしてそのまま保存できるよう、見出し・本文の構成で提示してください。",
+  google_sheet:
+    "後でGoogleスプレッドシートとして保存するので、設問・解答・配点などをMarkdownの表形式で提示してください。",
+  pdf: "後でGoogleドキュメント経由でPDFとして保存するので、印刷して配布できる体裁で提示してください。",
+};
+
 export type Difficulty = "auto" | "basic" | "standard" | "advanced";
 
 export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
@@ -220,31 +229,25 @@ function getTodayInJapan(): string {
   return `${get("year")}${get("month")}${get("day")}`;
 }
 
-export function buildSystemPrompt(
-  outputFormat: OutputFormat,
-  options: MaterialOptions = DEFAULT_MATERIAL_OPTIONS,
+// google_doc/google_sheet/pdfは「内容の下書きを提示 → 教員が確認 → 保存を指示」の
+// 2段階で進める。draftは下書き提示（ファイル作成なし）、confirmは保存確定（ファイル作成）。
+export type PromptPhase = "draft" | "confirm";
+
+function buildDraftSystemPrompt(
+  outputFormat: Exclude<OutputFormat, "google_form">,
+  options: MaterialOptions,
 ): string {
-  const today = getTodayInJapan();
-
-  if (outputFormat === "google_form") {
-    return buildGoogleFormSystemPrompt(options, today);
-  }
-
-  const namingExample =
-    outputFormat === "pdf"
-      ? `${today}_公共_政治参加と選挙_小テスト.pdf`
-      : `${today}_公共_政治参加と選挙_小テスト`;
   const evaluationSection = buildEvaluationSection(options);
 
   return `あなたは高校公民科「公共」を担当する教員を支援する教材作成アシスタントです。
 
 ## 役割
-教員からの指示に応じて、Googleドライブに保存済みの教材を参照しながら、新しい教材（問題・プリント・小テストなど）を作成します。
+教員からの指示に応じて、Googleドライブに保存済みの教材を参照しながら、新しい教材（問題・プリント・小テストなど）の内容を作成します。今回はまだ内容を確定する段階です。教員が内容を確認したうえで、保存するかどうかを判断します。
 
 ## 参照可能なGoogleドライブフォルダ
 ${REFERENCE_FOLDERS.map((f) => `- ${f}`).join("\n")}
 
-これらのフォルダの内容を検索・参照して、教科書の該当範囲や過去問の傾向を踏まえた教材を作成してください。参照した資料（章・ページ範囲・年度など）は作成物の中で分かるように示してください。
+これらのフォルダの内容を検索・参照して、教科書の該当範囲や過去問の傾向を踏まえた教材を作成してください。参照した資料（章・ページ範囲・年度など）は回答の中で分かるように示してください。
 
 ## 出題設定
 ${buildQuestionSettingsSection(options)}
@@ -254,9 +257,32 @@ ${evaluationSection ? `\n## 観点別評価・思考力を問う設問\n${evalua
 問題を作成する場合は、必ず各問題に「解答」と「解説」を付けてください。解説は、なぜその答えになるのかが生徒にも分かるように、根拠となる教科書の該当箇所や考え方を簡潔に説明してください。
 ${
   options.separateAnswerSheet
-    ? "問題部分と解答・解説部分は、教員が生徒配布用と採点用に分けて印刷できるよう、改ページで明確に区切ってください（例: 問題→改ページ→解答・解説）。"
-    : "各問題の直後に解答・解説を続けて記載するか、文書末尾に解答・解説をまとめて記載してください。"
+    ? "問題部分と解答・解説部分は、教員が生徒配布用と採点用に分けて印刷できるよう、改ページで明確に区切って提示してください（例: 問題→解答・解説）。"
+    : "各問題の直後に解答・解説を続けて記載するか、末尾に解答・解説をまとめて記載してください。"
 }
+
+## 今回の回答について（重要）
+今回はまだ内容を確定する段階のため、Googleドライブにファイルを作成・保存するツールは使用しないでください（参照資料の検索・閲覧のみMCPツールを使用してください）。作成予定の教材の内容を、そのままこのチャット上に全文提示してください。${OUTPUT_FORMAT_DRAFT_HINTS[outputFormat]}
+
+チャット上の回答はMarkdownとして描画されます。大問は見出し（##）で区切り、設問は番号付きリストにし、「解答」「解説」は\`**太字**\`のラベルで示すなど、教員が読みやすい書式にしてください。
+
+内容を提示したら、回答の最後に次のように一言添えてください（表現は多少調整してよい）:「内容をご確認いただき、よろしければ画面の『この内容で保存する』を押してください。修正したい点があれば教えてください。」
+
+## 進め方
+- 作業を始める前に、参照する資料が十分か確認してください。情報が不足している場合は、作業を進めながら教員に確認してください。
+- 生徒の個人情報は一切扱いません。`;
+}
+
+function buildConfirmSystemPrompt(outputFormat: Exclude<OutputFormat, "google_form">, today: string): string {
+  const namingExample =
+    outputFormat === "pdf"
+      ? `${today}_公共_政治参加と選挙_小テスト.pdf`
+      : `${today}_公共_政治参加と選挙_小テスト`;
+
+  return `あなたは高校公民科「公共」を担当する教員を支援する教材作成アシスタントです。
+
+## 役割
+教員は直前のあなたの回答内容を確認し、保存を希望しています。直前の回答で提示した教材の内容を新たに作り直さず、そのままの内容でGoogleドライブに実際にファイルを作成してください。
 
 ## 出力形式
 ${OUTPUT_FORMAT_INSTRUCTIONS[outputFormat]}
@@ -270,13 +296,30 @@ ${OUTPUT_FORMAT_INSTRUCTIONS[outputFormat]}
 
 例（本日は${today}）: ${namingExample}
 
-単元名・教材種別は指示内容から適切に判断してください。同名ファイルが既に存在する場合は末尾に連番（_2など）を付けて区別してください。
+単元名・教材種別は直前の内容から適切に判断してください。同名ファイルが既に存在する場合は末尾に連番（_2など）を付けて区別してください。
 
 ## チャットでの回答の書式
-チャット上の返答はMarkdownとして描画されます。「ファイル名」「保存先」「参照した資料」などの項目名は\`**太字**\`にし、複数の項目や参照箇所を列挙する場合は箇条書き（\`- \`）を使うなど、教員が一目で要点を把握できる書式にしてください。
+チャット上の返答はMarkdownとして描画されます。「ファイル名」「保存先」などの項目名は\`**太字**\`にしてください。
 
 ## 進め方
-- 作業を始める前に、参照する資料が十分か確認してください。情報が不足している場合は、作業を進めながら教員に確認してください。
-- 生徒の個人情報は一切扱いません。
-- 完了したら、作成したファイル名・保存先・参照した資料を簡潔に報告してください。`;
+- ファイルの作成が完了したら、作成したファイル名・保存先を簡潔に報告してください。
+- 生徒の個人情報は一切扱いません。`;
+}
+
+export function buildSystemPrompt(
+  outputFormat: OutputFormat,
+  options: MaterialOptions = DEFAULT_MATERIAL_OPTIONS,
+  phase: PromptPhase = "draft",
+): string {
+  const today = getTodayInJapan();
+
+  if (outputFormat === "google_form") {
+    return buildGoogleFormSystemPrompt(options, today);
+  }
+
+  if (phase === "confirm") {
+    return buildConfirmSystemPrompt(outputFormat, today);
+  }
+
+  return buildDraftSystemPrompt(outputFormat, options);
 }

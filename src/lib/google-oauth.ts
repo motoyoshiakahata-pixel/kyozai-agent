@@ -6,13 +6,15 @@ const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo";
 
 // マイドライブ内の既存教材読み取り・「作成教材」フォルダへの書き込みの両方が必要なため、
 // 自身が作成したファイルのみにアクセスできる drive.file ではなく drive スコープを使う。
-// forms.body はGoogleフォーム（採点・解説付きの小テスト）の作成に使用する。
+// forms.body はGoogleフォーム（採点・解説付きの小テスト）の作成に、
+// forms.responses.readonly は解答結果の分析（正答率の集計）に使用する。
 const SCOPES = [
   "openid",
   "email",
   "profile",
   "https://www.googleapis.com/auth/drive",
   "https://www.googleapis.com/auth/forms.body",
+  "https://www.googleapis.com/auth/forms.responses.readonly",
 ].join(" ");
 
 function getEnv(name: string): string {

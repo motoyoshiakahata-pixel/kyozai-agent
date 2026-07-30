@@ -16,6 +16,7 @@ import {
   type MaterialOptions,
   type OutputFormat,
   type PageRange,
+  type PromptPhase,
   type QuestionType,
 } from "@/lib/prompts";
 import { describeMcpToolUse, type ChatStreamEvent } from "@/lib/chat-events";
@@ -144,12 +145,14 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const messages: ChatMessage[] | undefined = body?.messages;
   const outputFormat: OutputFormat | undefined = body?.outputFormat;
+  const confirmSave: boolean = body?.confirmSave === true;
 
   if (!Array.isArray(messages) || messages.length === 0 || !outputFormat) {
     return new Response("リクエストの形式が不正です。", { status: 400 });
   }
 
   const materialOptions = parseMaterialOptions(body);
+  const phase: PromptPhase = confirmSave ? "confirm" : "draft";
 
   const client = getAnthropicClient();
   const encoder = new TextEncoder();
@@ -198,7 +201,7 @@ export async function POST(request: NextRequest) {
           const mcpStream = client.beta.messages.stream({
             model: CHAT_MODEL,
             max_tokens: CHAT_MAX_TOKENS,
-            system: buildSystemPrompt(outputFormat, materialOptions),
+            system: buildSystemPrompt(outputFormat, materialOptions, phase),
             messages: anthropicMessages,
             output_config: { effort: CHAT_EFFORT },
             mcp_servers: [

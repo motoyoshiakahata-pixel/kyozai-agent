@@ -21,6 +21,14 @@ interface Message {
   content: string;
   statuses: string[];
   settingsSummary?: string;
+  outputFormatUsed?: OutputFormat;
+  isConfirmation?: boolean;
+}
+
+interface SendArgs {
+  text: string;
+  confirmSave?: boolean;
+  outputFormatOverride?: OutputFormat;
 }
 
 const OUTPUT_FORMATS = Object.keys(OUTPUT_FORMAT_LABELS) as OutputFormat[];
@@ -268,7 +276,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
   const [customPrompts, setCustomPrompts] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastUserText, setLastUserText] = useState<string | null>(null);
+  const [lastSend, setLastSend] = useState<SendArgs | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -457,15 +465,27 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
     return [OUTPUT_FORMAT_LABELS[outputFormat], buildSettingsSummary()].filter(Boolean).join(" ・ ");
   }
 
-  async function sendMessage(text: string) {
+  async function sendMessage(text: string, opts?: { confirmSave?: boolean; outputFormatOverride?: OutputFormat }) {
+    const confirmSave = opts?.confirmSave ?? false;
+    const effectiveOutputFormat = opts?.outputFormatOverride ?? outputFormat;
+
     setError(null);
-    setLastUserText(text);
-    const settingsSummary = buildSettingsSummary();
+    setLastSend({ text, confirmSave, outputFormatOverride: opts?.outputFormatOverride });
+    const settingsSummary = confirmSave ? undefined : buildSettingsSummary();
     const nextMessages: Message[] = [
       ...messages,
       { role: "user", content: text, statuses: [], settingsSummary },
     ];
-    setMessages([...nextMessages, { role: "assistant", content: "", statuses: [] }]);
+    setMessages([
+      ...nextMessages,
+      {
+        role: "assistant",
+        content: "",
+        statuses: [],
+        outputFormatUsed: effectiveOutputFormat,
+        isConfirmation: confirmSave,
+      },
+    ]);
     setInput("");
     setIsSending(true);
 
@@ -479,7 +499,8 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: nextMessages.map(({ role, content }) => ({ role, content })),
-          outputFormat,
+          outputFormat: effectiveOutputFormat,
+          confirmSave,
           materialOptions: {
             questionCount: parsePositiveInt(questionCountInput),
             majorQuestionCount: parsePositiveInt(majorQuestionCountInput),
@@ -554,8 +575,30 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
   }
 
   function handleRetry() {
-    if (!lastUserText || isSending) return;
-    void sendMessage(lastUserText);
+    if (!lastSend || isSending) return;
+    void sendMessage(lastSend.text, {
+      confirmSave: lastSend.confirmSave,
+      outputFormatOverride: lastSend.outputFormatOverride,
+    });
+  }
+
+  function handleConfirmSave() {
+    if (isSending) return;
+    const last = messages[messages.length - 1];
+    if (
+      !last ||
+      last.role !== "assistant" ||
+      !last.content ||
+      last.isConfirmation ||
+      !last.outputFormatUsed ||
+      last.outputFormatUsed === "google_form"
+    ) {
+      return;
+    }
+    void sendMessage("この内容で保存してください。", {
+      confirmSave: true,
+      outputFormatOverride: last.outputFormatUsed,
+    });
   }
 
   function handleSubmit(event: FormEvent) {
@@ -690,7 +733,23 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
                   <div className="break-words rounded-2xl bg-stone-100 px-4 py-2 dark:bg-stone-900">
                     <MarkdownMessage text={message.content} />
                   </div>
-                  {!isSending && <CopyButton text={message.content} />}
+                  <div className="flex items-center gap-3">
+                    {!isSending && <CopyButton text={message.content} />}
+                    {!isSending &&
+                      !error &&
+                      !message.isConfirmation &&
+                      !!message.outputFormatUsed &&
+                      message.outputFormatUsed !== "google_form" &&
+                      index === messages.length - 1 && (
+                        <button
+                          type="button"
+                          onClick={handleConfirmSave}
+                          className="self-start rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-foreground shadow-sm transition-colors hover:brightness-110"
+                        >
+                          この内容で保存する
+                        </button>
+                      )}
+                  </div>
                 </>
               )}
               {message.role === "assistant" &&
@@ -725,7 +784,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
       {error && (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
           <p>{error}</p>
-          {lastUserText && (
+          {lastSend && (
             <button
               type="button"
               onClick={handleRetry}

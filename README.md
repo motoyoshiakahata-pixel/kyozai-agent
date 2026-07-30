@@ -53,9 +53,15 @@ cp .env.example .env.local
 
 PCでの利用を主な想定とし、幅広い画面では教材作成チャットを主要な列、参照フォルダ・作成履歴をサイドバー列に配置する2カラムレイアウトにしています（`src/components/Workspace.tsx`）。狭い画面では1カラムに積み上がります。
 
+#### 生成前のプレビュー確認（Googleドキュメント／スプレッドシート／PDF）
+
+これらの出力形式では、教材の内容はまず「下書き」としてチャット上に全文提示され、Googleドライブへのファイル作成はまだ行われません（`buildSystemPrompt`の`draft`フェーズ、`src/lib/prompts.ts`）。内容を確認し、問題なければ回答の下に表示される「この内容で保存する」ボタンを押すと、直前の内容をそのまま使ってGoogleドライブに実際にファイルを作成します（`confirm`フェーズ、同ファイル）。フロントエンドは確認操作を通常のチャット送信として扱い、リクエストに`confirmSave: true`と、下書き生成時の出力形式（`outputFormatUsed`）を付加します（`src/components/ChatPanel.tsx`の`handleConfirmSave`）。気に入らない下書きはそのまま指示を続けて修正でき、無関係なファイルが「作成教材」フォルダに溜まるのを防げます。Googleフォーム出力はこの確認フローの対象外で、従来通り即座に作成されます。
+
 ### 作成履歴パネル
 
 `/api/materials` がGoogle Drive API（v3）を直接呼び出し、マイドライブ直下の「作成教材」フォルダ内のファイルを作成日時順に取得します（`src/lib/google-drive.ts`）。チャット画面下の作成履歴パネル（`src/components/MaterialsPanel.tsx`）に表示され、教材作成が完了するたびに自動更新されます。
+
+Googleフォーム（自動採点）のファイルには「回答を分析」ボタンが表示され、Forms APIから回答結果を取得して、設問ごとの正答率を低い順に一覧表示します（`analyzeFormResponses`、`src/lib/google-forms.ts`、`/api/materials/analyze`）。正答率は色分け（赤:50%未満・黄:80%未満・緑:80%以上）して表示され、復習が必要な設問がひと目でわかります。データベースは使わず、都度Forms APIから最新の構成・回答を取得して集計する方式です。この機能には`https://www.googleapis.com/auth/forms.responses.readonly`スコープが必要です（`src/lib/google-oauth.ts`）。既にログイン済みの場合は、一度ログアウトして再度Googleでログインし、新しい権限を許可し直してください。
 
 ### Googleフォーム出力（自動採点・解説つき）
 

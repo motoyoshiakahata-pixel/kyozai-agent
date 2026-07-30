@@ -128,6 +128,128 @@ export function parseQuizFormData(jsonText: string): QuizFormData {
   return { title, questions };
 }
 
+export interface FormQuestionStat {
+  questionId: string;
+  title: string;
+  correctCount: number;
+  gradedCount: number;
+  correctRate: number | null;
+  maxPoints: number;
+}
+
+export interface FormAnalysis {
+  totalResponses: number;
+  averageScorePercent: number | null;
+  questions: FormQuestionStat[];
+}
+
+interface FormsGetItem {
+  itemId?: string;
+  title?: string;
+  questionItem?: {
+    question?: {
+      questionId?: string;
+      grading?: { pointValue?: number };
+    };
+  };
+}
+
+interface FormsResponseAnswer {
+  questionId?: string;
+  grade?: { score?: number; correct?: boolean };
+}
+
+interface FormsResponseEntry {
+  answers?: Record<string, FormsResponseAnswer>;
+  totalScore?: number;
+}
+
+async function getFormStructure(accessToken: string, formId: string): Promise<FormsGetItem[]> {
+  const result = await formsFetch(accessToken, `/${formId}`, { method: "GET" });
+  return (result.items as FormsGetItem[] | undefined) ?? [];
+}
+
+async function getAllFormResponses(accessToken: string, formId: string): Promise<FormsResponseEntry[]> {
+  const responses: FormsResponseEntry[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const query = pageToken ? `?pageToken=${encodeURIComponent(pageToken)}` : "";
+    const result = await formsFetch(accessToken, `/${formId}/responses${query}`, { method: "GET" });
+    responses.push(...((result.responses as FormsResponseEntry[] | undefined) ?? []));
+    pageToken = result.nextPageToken as string | undefined;
+  } while (pageToken);
+
+  return responses;
+}
+
+// クイズ形式のGoogleフォームの回答結果を集計し、設問ごとの正答率を分析する。
+// 「作成教材」フォルダに保存する以外のデータ保存を行わない方針のため、
+// 分析は都度フォームの現在の構成・回答をForms APIから取得して計算する。
+export async function analyzeFormResponses(accessToken: string, formId: string): Promise<FormAnalysis> {
+  const [items, responses] = await Promise.all([
+    getFormStructure(accessToken, formId),
+    getAllFormResponses(accessToken, formId),
+  ]);
+
+  const questionStats = new Map<string, FormQuestionStat>();
+  let maxTotalScore = 0;
+
+  for (const item of items) {
+    const questionId = item.questionItem?.question?.questionId;
+    if (!questionId) continue;
+    const maxPoints = item.questionItem?.question?.grading?.pointValue ?? 0;
+    maxTotalScore += maxPoints;
+    questionStats.set(questionId, {
+      questionId,
+      title: item.title ?? "（無題の設問）",
+      correctCount: 0,
+      gradedCount: 0,
+      correctRate: null,
+      maxPoints,
+    });
+  }
+
+  let scoreSum = 0;
+  let scoredResponseCount = 0;
+
+  for (const response of responses) {
+    if (typeof response.totalScore === "number") {
+      scoreSum += response.totalScore;
+      scoredResponseCount += 1;
+    }
+    for (const [questionId, answer] of Object.entries(response.answers ?? {})) {
+      const stat = questionStats.get(questionId);
+      if (!stat || !answer.grade) continue;
+      stat.gradedCount += 1;
+      if (answer.grade.correct) stat.correctCount += 1;
+    }
+  }
+
+  const questions = Array.from(questionStats.values())
+    .map((stat) => ({
+      ...stat,
+      correctRate: stat.gradedCount > 0 ? stat.correctCount / stat.gradedCount : null,
+    }))
+    .sort((a, b) => {
+      if (a.correctRate === null && b.correctRate === null) return 0;
+      if (a.correctRate === null) return 1;
+      if (b.correctRate === null) return -1;
+      return a.correctRate - b.correctRate;
+    });
+
+  const averageScorePercent =
+    scoredResponseCount > 0 && maxTotalScore > 0
+      ? (scoreSum / scoredResponseCount / maxTotalScore) * 100
+      : null;
+
+  return {
+    totalResponses: responses.length,
+    averageScorePercent,
+    questions,
+  };
+}
+
 // クイズ形式(自動採点・解説表示あり)のGoogleフォームを新規作成する。
 export async function createQuizForm(
   accessToken: string,
