@@ -19,6 +19,8 @@ import {
   type QuestionType,
 } from "@/lib/prompts";
 import { describeMcpToolUse, type ChatStreamEvent } from "@/lib/chat-events";
+import { createQuizForm, extractQuizFormJson, parseQuizFormData } from "@/lib/google-forms";
+import { moveFileToMaterialsFolder } from "@/lib/google-drive";
 
 export const dynamic = "force-dynamic";
 // Vercel Hobby(無料)プランで設定可能な上限。教材生成が長時間化する場合は
@@ -161,6 +163,34 @@ export async function POST(request: NextRequest) {
         (m) => ({ role: m.role, content: m.content }),
       );
 
+      // Googleフォーム出力では、アシスタントが出力するJSONコードブロックは
+      // チャット画面に表示せず、フォーム作成にのみ使用する。
+      let rawAssistantText = "";
+      let jsonFenceStarted = false;
+      let hadRefusal = false;
+
+      const handleTextDelta = (delta: string) => {
+        rawAssistantText += delta;
+
+        if (outputFormat !== "google_form") {
+          sendEvent({ type: "delta", text: delta });
+          return;
+        }
+        if (jsonFenceStarted) return;
+
+        const fenceIndex = rawAssistantText.indexOf("```json");
+        if (fenceIndex === -1) {
+          sendEvent({ type: "delta", text: delta });
+          return;
+        }
+
+        jsonFenceStarted = true;
+        const priorLength = rawAssistantText.length - delta.length;
+        if (fenceIndex > priorLength) {
+          sendEvent({ type: "delta", text: rawAssistantText.slice(priorLength, fenceIndex) });
+        }
+      };
+
       try {
         for (let i = 0; i < MAX_CONTINUATIONS; i++) {
           const mcpStream = client.beta.messages.stream({
@@ -181,7 +211,7 @@ export async function POST(request: NextRequest) {
             betas: ["mcp-client-2025-11-20"],
           });
 
-          mcpStream.on("text", (delta) => sendEvent({ type: "delta", text: delta }));
+          mcpStream.on("text", handleTextDelta);
 
           mcpStream.on("contentBlock", (block) => {
             if (block.type === "mcp_tool_use") {
@@ -205,6 +235,7 @@ export async function POST(request: NextRequest) {
           }
 
           if (finalMessage.stop_reason === "refusal") {
+            hadRefusal = true;
             sendEvent({
               type: "error",
               text: "このリクエストは処理できませんでした。内容を変えて再度お試しください。",
@@ -212,6 +243,40 @@ export async function POST(request: NextRequest) {
           }
 
           break;
+        }
+
+        if (outputFormat === "google_form" && !hadRefusal) {
+          const formJson = extractQuizFormJson(rawAssistantText);
+          if (!formJson) {
+            sendEvent({
+              type: "error",
+              text: "Googleフォーム用の設問データを読み取れませんでした。もう一度お試しください。",
+            });
+          } else {
+            try {
+              sendEvent({ type: "status", text: "Googleフォームを作成しています…" });
+              const quizFormData = parseQuizFormData(formJson);
+              const createdForm = await createQuizForm(accessToken, quizFormData);
+              sendEvent({ type: "status", text: "フォームを「作成教材」フォルダに移動しています…" });
+              await moveFileToMaterialsFolder(accessToken, createdForm.formId);
+              sendEvent({
+                type: "delta",
+                text:
+                  `\n\nGoogleフォームを作成しました。\n回答用リンク: ${createdForm.responderUri}\n編集用リンク: ${createdForm.editUri}\n\n` +
+                  "※ 初回のみ、フォームの「設定」→「回答」で採点結果の表示が「送信直後」になっているかご確認ください。",
+              });
+            } catch (formError) {
+              console.error("Googleフォームの作成に失敗しました", formError);
+              const isPermissionError =
+                formError instanceof Error && /\b(401|403)\b/.test(formError.message);
+              sendEvent({
+                type: "error",
+                text: isPermissionError
+                  ? "Googleフォームの作成権限がありません。一度ログアウトしてから再度Googleでログインし、フォームへのアクセスを許可してください。"
+                  : "Googleフォームの作成に失敗しました。しばらくしてから再度お試しください。",
+              });
+            }
+          }
         }
       } catch (error) {
         console.error("Anthropic API呼び出しに失敗しました", error);

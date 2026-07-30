@@ -29,7 +29,7 @@ cp .env.example .env.local
 2. 「APIとサービス」→「認証情報」からOAuth 2.0 クライアントID（ウェブアプリケーション）を作成
 3. 承認済みのリダイレクトURIに `GOOGLE_REDIRECT_URI` と同じ値を登録（本番環境用URLも追加）
 4. OAuth同意画面でテストユーザーとして開発者本人のGoogleアカウントを追加（マルチユーザー対応不要のため「テスト」モードのままでよい）
-5. Google Drive APIを有効化
+5. Google Drive APIとGoogle Forms APIを有効化
 
 ### 認証の仕組み
 
@@ -52,6 +52,16 @@ cp .env.example .env.local
 ### 作成履歴パネル
 
 `/api/materials` がGoogle Drive API（v3）を直接呼び出し、マイドライブ直下の「作成教材」フォルダ内のファイルを作成日時順に取得します（`src/lib/google-drive.ts`）。チャット画面下の作成履歴パネル（`src/components/MaterialsPanel.tsx`）に表示され、教材作成が完了するたびに自動更新されます。
+
+### Googleフォーム出力（自動採点・解説つき）
+
+出力形式で「Googleフォーム（自動採点）」を選ぶと、生徒がGoogleフォームで解答し、送信直後に得点と各設問の解説（正解・不正解を問わず）が表示されるクイズを自動作成します。
+
+Google Drive MCPサーバーはフォームを作成できないため、この出力形式ではMCPツールでのファイル作成を行わず、代わりにモデルが応答の末尾に設問データ（設問文・選択肢・正解・解説・配点）をJSONコードブロックとして出力するよう指示します（`buildSystemPrompt`の`google_form`分岐、`src/lib/prompts.ts`）。`/api/chat`（`src/app/api/chat/route.ts`）がこのJSONだけを抽出してチャット画面には表示せず、Google Forms API（`src/lib/google-forms.ts`）でクイズ形式のフォームを作成し、「作成教材」フォルダに移動します（`moveFileToMaterialsFolder`, `src/lib/google-drive.ts`）。
+
+- この機能には`https://www.googleapis.com/auth/forms.body`スコープが必要です（`src/lib/google-oauth.ts`）。既にログイン済みの場合は、一度ログアウトして再度Googleでログインし、新しい権限を許可し直してください。
+- Google Forms APIには「採点結果を送信直後に表示する」設定をプログラムから指定する手段が公開されていないため、初回作成時はフォームの「設定」→「回答」でこの設定になっているか一度確認することを推奨します（チャットの完了メッセージでも案内します）。
+- 自動採点の都合上、この出力形式では選択式・穴埋め・一問一答形式の短答式のみが出題対象です（長文の論述式などは対象外）。
 
 ## 開発サーバーの起動
 

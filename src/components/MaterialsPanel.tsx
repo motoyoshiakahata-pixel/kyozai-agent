@@ -14,6 +14,7 @@ function formatTypeLabel(mimeType: string): string {
   if (mimeType === "application/vnd.google-apps.document") return "Doc";
   if (mimeType === "application/vnd.google-apps.spreadsheet") return "Sheet";
   if (mimeType === "application/pdf") return "PDF";
+  if (mimeType === "application/vnd.google-apps.form") return "Form";
   return "File";
 }
 

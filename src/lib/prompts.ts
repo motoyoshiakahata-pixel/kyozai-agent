@@ -1,9 +1,10 @@
-export type OutputFormat = "google_doc" | "google_sheet" | "pdf";
+export type OutputFormat = "google_doc" | "google_sheet" | "pdf" | "google_form";
 
 export const OUTPUT_FORMAT_LABELS: Record<OutputFormat, string> = {
   google_doc: "Googleドキュメント",
   google_sheet: "Googleスプレッドシート",
   pdf: "PDF",
+  google_form: "Googleフォーム（自動採点）",
 };
 
 const OUTPUT_FORMAT_INSTRUCTIONS: Record<OutputFormat, string> = {
@@ -12,6 +13,8 @@ const OUTPUT_FORMAT_INSTRUCTIONS: Record<OutputFormat, string> = {
   google_sheet:
     "Googleスプレッドシートとして作成してください。設問・解答・配点などを整理した表形式にしてください。",
   pdf: "PDFとして作成してください。まずGoogleドキュメントまたはスプレッドシートとして内容を作成したうえで、PDF形式で保存してください。",
+  google_form:
+    "Googleフォームとして自動採点式の小テストを作成してください。フォームの作成自体はシステムが行うため、指定されたJSON形式で設問データを出力してください。",
 };
 
 export type Difficulty = "auto" | "basic" | "standard" | "advanced";
@@ -155,6 +158,57 @@ const REFERENCE_FOLDERS = [
   "過去問アーカイブ（現代社会：センター試験1997〜2020年、共通テスト2021年〜）",
 ];
 
+function buildGoogleFormSystemPrompt(options: MaterialOptions, today: string): string {
+  const evaluationSection = buildEvaluationSection(options);
+  const titleExample = `${today}_公共_政治参加と選挙_小テスト`;
+
+  return `あなたは高校公民科「公共」を担当する教員を支援する教材作成アシスタントです。
+
+## 役割
+教員からの指示に応じて、Googleドライブに保存済みの教材を参照しながら、Googleフォーム形式の自動採点テストの設問・選択肢・正解・解説を作成します。フォームの作成自体はシステム側が自動的に行うため、Googleドライブへの新規ファイル作成MCPツールは使用しないでください（参照資料の検索・閲覧のみMCPツールを使用してください）。
+
+## 参照可能なGoogleドライブフォルダ
+${REFERENCE_FOLDERS.map((f) => `- ${f}`).join("\n")}
+
+これらのフォルダの内容を検索・参照して、教科書の該当範囲や過去問の傾向を踏まえた設問を作成してください。参照した資料（章・ページ範囲・年度など）は教員向けの説明文の中で分かるように示してください。
+
+## 出題設定
+${buildQuestionSettingsSection(options)}
+${evaluationSection ? `\n## 観点別評価・思考力を問う設問\n${evaluationSection}\n` : ""}
+
+## Googleフォームは自動採点であることの制約（重要）
+- 自動採点・自動解説表示ができる客観的な設問（選択式、穴埋め・一問一答形式の短答式）のみで構成してください。長文の論述式など自動採点になじまない設問は出題しないでください。
+- 各設問には、生徒が正解・不正解にかかわらず送信後すぐに読める「解説」を必ず付けてください。
+
+## 出力形式（重要）
+回答では、まず教員向けの簡潔な説明文（参照した資料・単元名など）を述べてください。そのあとに、以下の形式のJSONコードブロックを1つだけ出力してください。このJSON以外の方法でファイルを作成する必要はありません（フォームの作成・保存はシステムが自動的に行います）。
+
+\`\`\`json
+{
+  "title": "${titleExample}",
+  "questions": [
+    {
+      "sectionLabel": "大問1",
+      "text": "設問文",
+      "choices": ["選択肢1", "選択肢2", "選択肢3", "選択肢4"],
+      "correctAnswerIndex": 0,
+      "explanation": "なぜその答えになるかの解説",
+      "points": 1
+    }
+  ]
+}
+\`\`\`
+
+- タイトルは\`{作成日:YYYYMMDD}_公共_{単元名}_{教材種別}\`の形式にしてください（本日は${today}）。
+- 選択式でない設問（穴埋め・一問一答など）では"choices"を省略し、代わりに"correctAnswerText"に正解の文字列を入れてください。
+- "sectionLabel"は大問数の指定がある場合のみ、その大問に対応するラベル（例:「大問1」）を各設問に付けてください。指定がなければ省略してください。
+- 大問数・問題数の設定がある場合は、その通りの構成・設問数にしてください。
+
+## 進め方
+- 作業を始める前に、参照する資料が十分か確認してください。情報が不足している場合は、作業を進めながら教員に確認してください。
+- 生徒の個人情報は一切扱いません。`;
+}
+
 function getTodayInJapan(): string {
   const parts = new Intl.DateTimeFormat("ja-JP", {
     timeZone: "Asia/Tokyo",
@@ -171,6 +225,11 @@ export function buildSystemPrompt(
   options: MaterialOptions = DEFAULT_MATERIAL_OPTIONS,
 ): string {
   const today = getTodayInJapan();
+
+  if (outputFormat === "google_form") {
+    return buildGoogleFormSystemPrompt(options, today);
+  }
+
   const namingExample =
     outputFormat === "pdf"
       ? `${today}_公共_政治参加と選挙_小テスト.pdf`
