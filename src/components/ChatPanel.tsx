@@ -594,12 +594,12 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
             key={index}
             className={
               message.role === "user"
-                ? "flex items-end justify-end gap-2 self-end"
-                : "flex items-start gap-2 self-start"
+                ? "flex max-w-full items-end justify-end gap-2 self-end"
+                : "flex max-w-full items-start gap-2 self-start"
             }
           >
             {message.role === "assistant" && <Avatar role="assistant" />}
-            <div className="flex flex-col gap-1">
+            <div className="flex min-w-0 flex-col gap-1">
               {message.role === "assistant" && message.statuses.length > 0 && (
                 <ul className="flex flex-col gap-0.5 pl-1 text-xs text-zinc-400 dark:text-zinc-500">
                   {message.statuses.map((status, statusIndex) => (
@@ -614,14 +614,14 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
                       {message.settingsSummary}
                     </span>
                   )}
-                  <div className="rounded-2xl bg-accent px-4 py-2 text-sm text-accent-foreground">
+                  <div className="rounded-2xl bg-accent px-4 py-2 text-sm break-words text-accent-foreground">
                     {message.content}
                   </div>
                 </>
               )}
               {message.role === "assistant" && message.content && (
                 <>
-                  <div className="whitespace-pre-wrap rounded-2xl bg-zinc-100 px-4 py-2 text-sm text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
+                  <div className="whitespace-pre-wrap break-words rounded-2xl bg-zinc-100 px-4 py-2 text-sm text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
                     {renderWithLinks(message.content)}
                   </div>
                   {!isSending && <CopyButton text={message.content} />}
