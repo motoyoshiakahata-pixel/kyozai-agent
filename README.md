@@ -6,7 +6,7 @@
 
 ## 想定アーキテクチャ
 
-フロントエンド（Next.js, Vercelホスティング）→ バックエンド（Next.js API Routes）→ Anthropic API（Claude Sonnet 4.6、mcp_serversにGoogle DriveのMCPサーバーURLを渡す）→ Google OAuth認証
+フロントエンド（Next.js, Vercelホスティング）→ バックエンド（Next.js API Routes）→ Anthropic API（mcp_serversにGoogle DriveのMCPサーバーURLを渡す）→ Google OAuth認証
 
 ## セットアップ
 
@@ -38,6 +38,12 @@ cp .env.example .env.local
 - `/api/auth/login`: Google認証画面へリダイレクト
 - `/api/auth/callback`: 認可コードをトークンに交換し、暗号化したセッションをCookieに保存
 - `/api/auth/logout`: セッションCookieを削除
+
+### 教材作成チャット（Anthropic API連携）
+
+`/api/chat` がAnthropic APIの[MCP connector](https://platform.claude.com/docs/en/agents-and-tools/mcp-connector)（beta）を使い、`mcp_servers` にGoogle Drive MCPサーバーのURLとログイン中ユーザーのGoogleアクセストークンを渡してリクエストします。モデルはコスト管理（Claude Proのプログラム利用クレジット月20ドル相当）を踏まえ `claude-sonnet-5`・`effort: medium` を既定にしています（`src/lib/anthropic.ts`）。システムプロンプト（参照フォルダ・出力形式・保存先の指示）は `src/lib/prompts.ts` にまとめています。
+
+`GOOGLE_DRIVE_MCP_SERVER_URL` にはGoogle Drive操作用のMCPサーバー（Streamable HTTP）のURLを設定してください。
 
 ## 開発サーバーの起動
 

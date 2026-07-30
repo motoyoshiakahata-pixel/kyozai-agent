@@ -1,4 +1,6 @@
 import { getSession } from "@/lib/session";
+import { ChatPanel } from "@/components/ChatPanel";
+import { OUTPUT_FORMAT_LABELS } from "@/lib/prompts";
 
 const referenceFolders = [
   "「公共」教科書PDF（章単位）",
@@ -8,7 +10,7 @@ const referenceFolders = [
   "過去問アーカイブ（センター試験1997〜2020年、共通テスト2021年〜）",
 ];
 
-const outputFormats = ["Googleドキュメント", "Googleスプレッドシート", "PDF"];
+const outputFormats = Object.values(OUTPUT_FORMAT_LABELS);
 
 const errorMessages: Record<string, string> = {
   invalid_state: "認証セッションが無効です。もう一度お試しください。",
@@ -93,30 +95,28 @@ export default async function Home(props: PageProps<"/">) {
           </ul>
         </section>
 
-        <section className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
-          <h2 className="text-lg font-semibold text-black dark:text-zinc-50">
-            出力形式
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {outputFormats.map((format) => (
-              <span
-                key={format}
-                className="rounded-full border border-zinc-200 px-3 py-1 text-sm text-zinc-700 dark:border-zinc-700 dark:text-zinc-300"
-              >
-                {format}
-              </span>
-            ))}
-          </div>
-        </section>
-
-        <section className="flex flex-col gap-2 rounded-xl border border-dashed border-zinc-300 p-6 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-          <p className="font-medium text-zinc-700 dark:text-zinc-300">
-            準備中
-          </p>
-          <p>
-            Claude APIとの連携、教材生成チャットUIはこれから実装します。
-          </p>
-        </section>
+        {session ? (
+          <ChatPanel />
+        ) : (
+          <section className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+            <h2 className="text-lg font-semibold text-black dark:text-zinc-50">
+              出力形式
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {outputFormats.map((format) => (
+                <span
+                  key={format}
+                  className="rounded-full border border-zinc-200 px-3 py-1 text-sm text-zinc-700 dark:border-zinc-700 dark:text-zinc-300"
+                >
+                  {format}
+                </span>
+              ))}
+            </div>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              教材作成チャットを利用するにはGoogleでログインしてください。
+            </p>
+          </section>
+        )}
       </main>
     </div>
   );
