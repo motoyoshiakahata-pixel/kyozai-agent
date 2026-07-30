@@ -12,8 +12,10 @@ import {
   buildSystemPrompt,
   DEFAULT_MATERIAL_OPTIONS,
   type Difficulty,
+  type EvaluationPerspective,
   type MaterialOptions,
   type OutputFormat,
+  type PageRange,
   type QuestionType,
 } from "@/lib/prompts";
 import { describeMcpToolUse, type ChatStreamEvent } from "@/lib/chat-events";
@@ -37,6 +39,23 @@ const QUESTION_TYPES: QuestionType[] = [
   "descriptive",
   "fill_in_blank",
 ];
+const EVALUATION_PERSPECTIVES: EvaluationPerspective[] = [
+  "knowledge_skill",
+  "thinking_judgment_expression",
+  "proactive_attitude",
+];
+
+function parsePageRange(raw: unknown): PageRange | null {
+  const value = raw as { start?: unknown; end?: unknown } | undefined;
+  const start =
+    typeof value?.start === "number" && Number.isInteger(value.start) && value.start > 0
+      ? value.start
+      : null;
+  const end =
+    typeof value?.end === "number" && Number.isInteger(value.end) && value.end > 0 ? value.end : null;
+
+  return start !== null && end !== null && end >= start ? { start, end } : null;
+}
 
 function parseMaterialOptions(body: unknown): MaterialOptions {
   const raw = (body as { materialOptions?: Record<string, unknown> })?.materialOptions ?? {};
@@ -55,8 +74,24 @@ function parseMaterialOptions(body: unknown): MaterialOptions {
     : DEFAULT_MATERIAL_OPTIONS.questionType;
 
   const separateAnswerSheet = raw.separateAnswerSheet === true;
+  const pageRange = parsePageRange(raw.pageRange);
+  const includeGraphOrTableQuestion = raw.includeGraphOrTableQuestion === true;
 
-  return { questionCount, difficulty, questionType, separateAnswerSheet };
+  const evaluationPerspectives = Array.isArray(raw.evaluationPerspectives)
+    ? raw.evaluationPerspectives.filter((p): p is EvaluationPerspective =>
+        EVALUATION_PERSPECTIVES.includes(p as EvaluationPerspective),
+      )
+    : [];
+
+  return {
+    questionCount,
+    difficulty,
+    questionType,
+    separateAnswerSheet,
+    pageRange,
+    includeGraphOrTableQuestion,
+    evaluationPerspectives,
+  };
 }
 
 function describeError(error: unknown): string {

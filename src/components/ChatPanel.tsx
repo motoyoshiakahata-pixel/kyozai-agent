@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import {
   DIFFICULTY_LABELS,
+  EVALUATION_PERSPECTIVE_LABELS,
   OUTPUT_FORMAT_LABELS,
   QUESTION_TYPE_LABELS,
   type Difficulty,
+  type EvaluationPerspective,
   type OutputFormat,
   type QuestionType,
 } from "@/lib/prompts";
@@ -21,6 +23,7 @@ interface Message {
 const OUTPUT_FORMATS = Object.keys(OUTPUT_FORMAT_LABELS) as OutputFormat[];
 const DIFFICULTIES = Object.keys(DIFFICULTY_LABELS) as Difficulty[];
 const QUESTION_TYPES = Object.keys(QUESTION_TYPE_LABELS) as QuestionType[];
+const EVALUATION_PERSPECTIVES = Object.keys(EVALUATION_PERSPECTIVE_LABELS) as EvaluationPerspective[];
 
 type QuestionCountOption = "auto" | "5" | "10" | "15" | "20";
 
@@ -50,6 +53,10 @@ interface PersistedDraft {
   difficulty: Difficulty;
   questionType: QuestionType;
   separateAnswerSheet: boolean;
+  pageStart: string;
+  pageEnd: string;
+  includeGraphOrTableQuestion: boolean;
+  evaluationPerspectives: EvaluationPerspective[];
 }
 
 function SegmentedControl<T extends string>({
@@ -156,6 +163,10 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
   const [difficulty, setDifficulty] = useState<Difficulty>("auto");
   const [questionType, setQuestionType] = useState<QuestionType>("auto");
   const [separateAnswerSheet, setSeparateAnswerSheet] = useState(false);
+  const [pageStart, setPageStart] = useState("");
+  const [pageEnd, setPageEnd] = useState("");
+  const [includeGraphOrTableQuestion, setIncludeGraphOrTableQuestion] = useState(false);
+  const [evaluationPerspectives, setEvaluationPerspectives] = useState<EvaluationPerspective[]>([]);
   const [customPrompts, setCustomPrompts] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -195,6 +206,18 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
         if (draft.difficulty && DIFFICULTIES.includes(draft.difficulty)) setDifficulty(draft.difficulty);
         if (draft.questionType && QUESTION_TYPES.includes(draft.questionType)) setQuestionType(draft.questionType);
         if (typeof draft.separateAnswerSheet === "boolean") setSeparateAnswerSheet(draft.separateAnswerSheet);
+        if (typeof draft.pageStart === "string") setPageStart(draft.pageStart);
+        if (typeof draft.pageEnd === "string") setPageEnd(draft.pageEnd);
+        if (typeof draft.includeGraphOrTableQuestion === "boolean") {
+          setIncludeGraphOrTableQuestion(draft.includeGraphOrTableQuestion);
+        }
+        if (Array.isArray(draft.evaluationPerspectives)) {
+          setEvaluationPerspectives(
+            draft.evaluationPerspectives.filter((p): p is EvaluationPerspective =>
+              EVALUATION_PERSPECTIVES.includes(p),
+            ),
+          );
+        }
       }
 
       const rawPrompts = localStorage.getItem(CUSTOM_PROMPTS_STORAGE_KEY);
@@ -222,6 +245,10 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
           difficulty,
           questionType,
           separateAnswerSheet,
+          pageStart,
+          pageEnd,
+          includeGraphOrTableQuestion,
+          evaluationPerspectives,
         };
         localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
       } catch {
@@ -229,7 +256,19 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
       }
     }, 300);
     return () => clearTimeout(id);
-  }, [messages, input, outputFormat, questionCountOption, difficulty, questionType, separateAnswerSheet]);
+  }, [
+    messages,
+    input,
+    outputFormat,
+    questionCountOption,
+    difficulty,
+    questionType,
+    separateAnswerSheet,
+    pageStart,
+    pageEnd,
+    includeGraphOrTableQuestion,
+    evaluationPerspectives,
+  ]);
 
   useEffect(() => {
     if (!hasLoadedDraftRef.current) return;
@@ -260,12 +299,31 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
     });
   }
 
+  function toggleEvaluationPerspective(perspective: EvaluationPerspective) {
+    setEvaluationPerspectives((prev) =>
+      prev.includes(perspective) ? prev.filter((p) => p !== perspective) : [...prev, perspective],
+    );
+  }
+
+  function parsedPageRange(): { start: number; end: number } | null {
+    const start = Number.parseInt(pageStart, 10);
+    const end = Number.parseInt(pageEnd, 10);
+    if (!Number.isInteger(start) || !Number.isInteger(end) || start <= 0 || end <= 0 || end < start) {
+      return null;
+    }
+    return { start, end };
+  }
+
   function buildSettingsSummary(): string | undefined {
     const parts: string[] = [];
     if (questionCountOption !== "auto") parts.push(`${questionCountOption}問`);
     if (difficulty !== "auto") parts.push(DIFFICULTY_LABELS[difficulty]);
     if (questionType !== "auto") parts.push(QUESTION_TYPE_LABELS[questionType]);
     if (separateAnswerSheet) parts.push("解答別紙");
+    const pageRange = parsedPageRange();
+    if (pageRange) parts.push(`${pageRange.start}〜${pageRange.end}ページ`);
+    for (const perspective of evaluationPerspectives) parts.push(EVALUATION_PERSPECTIVE_LABELS[perspective]);
+    if (includeGraphOrTableQuestion) parts.push("グラフ/表問題");
     return parts.length > 0 ? parts.join(" ・ ") : undefined;
   }
 
@@ -297,6 +355,9 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
             difficulty,
             questionType,
             separateAnswerSheet,
+            pageRange: parsedPageRange(),
+            includeGraphOrTableQuestion,
+            evaluationPerspectives,
           },
         }),
         signal: abortController.signal,
@@ -587,6 +648,59 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
               disabled={isSending}
             />
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="w-20 shrink-0 text-sm text-zinc-600 dark:text-zinc-400">参照ページ</span>
+            <input
+              type="number"
+              min={1}
+              value={pageStart}
+              onChange={(e) => setPageStart(e.target.value)}
+              disabled={isSending}
+              placeholder="開始"
+              className="w-20 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
+            />
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">〜</span>
+            <input
+              type="number"
+              min={1}
+              value={pageEnd}
+              onChange={(e) => setPageEnd(e.target.value)}
+              disabled={isSending}
+              placeholder="終了"
+              className="w-20 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
+            />
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">ページ</span>
+          </div>
+          <div className="flex flex-wrap items-start gap-2">
+            <span className="w-20 shrink-0 pt-1 text-sm text-zinc-600 dark:text-zinc-400">観点別評価</span>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {EVALUATION_PERSPECTIVES.map((perspective) => (
+                <label
+                  key={perspective}
+                  className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400"
+                >
+                  <input
+                    type="checkbox"
+                    checked={evaluationPerspectives.includes(perspective)}
+                    onChange={() => toggleEvaluationPerspective(perspective)}
+                    disabled={isSending}
+                    className="h-4 w-4 accent-accent"
+                  />
+                  {EVALUATION_PERSPECTIVE_LABELS[perspective]}
+                </label>
+              ))}
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+            <input
+              type="checkbox"
+              checked={includeGraphOrTableQuestion}
+              onChange={(e) => setIncludeGraphOrTableQuestion(e.target.checked)}
+              disabled={isSending}
+              className="h-4 w-4 accent-accent"
+            />
+            グラフ・表を用いた思考力・判断力・表現力を問う問題を含める
+          </label>
           <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
             <input
               type="checkbox"

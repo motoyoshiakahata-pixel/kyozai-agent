@@ -44,11 +44,38 @@ const QUESTION_TYPE_INSTRUCTIONS: Record<Exclude<QuestionType, "auto">, string> 
   fill_in_blank: "空欄に適切な語句を補う穴埋め形式。",
 };
 
+export type EvaluationPerspective =
+  | "knowledge_skill"
+  | "thinking_judgment_expression"
+  | "proactive_attitude";
+
+export const EVALUATION_PERSPECTIVE_LABELS: Record<EvaluationPerspective, string> = {
+  knowledge_skill: "観点1（知識・技能）",
+  thinking_judgment_expression: "観点2（思考・判断・表現）",
+  proactive_attitude: "観点3（主体的に学習に取り組む態度）",
+};
+
+const EVALUATION_PERSPECTIVE_INSTRUCTIONS: Record<EvaluationPerspective, string> = {
+  knowledge_skill: "教科書の用語・制度・仕組みなど、基本的な知識・技能の定着を問う設問を含める。",
+  thinking_judgment_expression:
+    "資料を読み取り、比較・関連付け・多角的な検討をさせるなど、思考力・判断力・表現力を評価しやすい設問を含める。",
+  proactive_attitude:
+    "自分の考えの根拠を示させる、学習内容を実生活と結び付けさせるなど、主体的に学習に取り組む態度を評価しやすい設問を含める。",
+};
+
+export interface PageRange {
+  start: number;
+  end: number;
+}
+
 export interface MaterialOptions {
   questionCount: number | null;
   difficulty: Difficulty;
   questionType: QuestionType;
   separateAnswerSheet: boolean;
+  pageRange: PageRange | null;
+  includeGraphOrTableQuestion: boolean;
+  evaluationPerspectives: EvaluationPerspective[];
 }
 
 export const DEFAULT_MATERIAL_OPTIONS: MaterialOptions = {
@@ -56,6 +83,9 @@ export const DEFAULT_MATERIAL_OPTIONS: MaterialOptions = {
   difficulty: "auto",
   questionType: "auto",
   separateAnswerSheet: false,
+  pageRange: null,
+  includeGraphOrTableQuestion: false,
+  evaluationPerspectives: [],
 };
 
 function buildQuestionSettingsSection(options: MaterialOptions): string {
@@ -79,7 +109,34 @@ function buildQuestionSettingsSection(options: MaterialOptions): string {
       : `- 出題形式: ${QUESTION_TYPE_LABELS[options.questionType]}（${QUESTION_TYPE_INSTRUCTIONS[options.questionType]}）`,
   );
 
+  lines.push(
+    options.pageRange
+      ? `- 参照ページ範囲: 教科書PDFの${options.pageRange.start}〜${options.pageRange.end}ページを優先的に検索・参照する`
+      : "- 参照ページ範囲: 指定なし（単元名や指示内容から該当箇所を判断する）",
+  );
+
   return lines.join("\n");
+}
+
+function buildEvaluationSection(options: MaterialOptions): string | null {
+  const lines: string[] = [];
+
+  if (options.evaluationPerspectives.length > 0) {
+    lines.push("次の観点別評価の観点を意識して設問を作成してください。");
+    for (const perspective of options.evaluationPerspectives) {
+      lines.push(
+        `- ${EVALUATION_PERSPECTIVE_LABELS[perspective]}: ${EVALUATION_PERSPECTIVE_INSTRUCTIONS[perspective]}`,
+      );
+    }
+  }
+
+  if (options.includeGraphOrTableQuestion) {
+    lines.push(
+      "グラフ・表・統計資料などの資料を提示し、それを読み取らせたうえで思考・判断・表現させる設問を最低1問含めてください。資料はGoogleドキュメントの表機能やGoogleスプレッドシートで再現するか、数値データを文章で明確に描写して再現してください。",
+    );
+  }
+
+  return lines.length > 0 ? lines.join("\n") : null;
 }
 
 const REFERENCE_FOLDERS = [
@@ -110,6 +167,7 @@ export function buildSystemPrompt(
     outputFormat === "pdf"
       ? `${today}_公共_政治参加と選挙_小テスト.pdf`
       : `${today}_公共_政治参加と選挙_小テスト`;
+  const evaluationSection = buildEvaluationSection(options);
 
   return `あなたは高校公民科「公共」を担当する教員を支援する教材作成アシスタントです。
 
@@ -123,6 +181,7 @@ ${REFERENCE_FOLDERS.map((f) => `- ${f}`).join("\n")}
 
 ## 出題設定
 ${buildQuestionSettingsSection(options)}
+${evaluationSection ? `\n## 観点別評価・思考力を問う設問\n${evaluationSection}\n` : ""}
 
 ## 解答・解説（必須）
 問題を作成する場合は、必ず各問題に「解答」と「解説」を付けてください。解説は、なぜその答えになるのかが生徒にも分かるように、根拠となる教科書の該当箇所や考え方を簡潔に説明してください。
