@@ -167,6 +167,19 @@ const REFERENCE_FOLDERS = [
   "過去問アーカイブ（現代社会：センター試験1997〜2020年、共通テスト2021年〜）",
 ];
 
+// 参照資料の検索・閲覧に使うMCPツールの案内（読み取り専用）。
+const READ_TOOLS_NOTE =
+  "参照資料の検索・閲覧には次のMCPツールを使用してください: search_drive_files（キーワード検索。folderNameで絞り込み可）、list_drive_folder（フォルダ直下の一覧）、read_drive_file（ファイル内容の読み取り。Googleドキュメント・スプレッドシート・PDFに対応）。";
+
+// ファイル作成に使うMCPツールの案内（出力形式ごと）。
+const WRITE_TOOLS_NOTE: Record<Exclude<OutputFormat, "google_form">, string> = {
+  google_doc:
+    "create_google_doc（title, htmlContentを指定）を使ってください。htmlContentは見出し(h1〜h3)・太字(strong)・箇条書き(ul/ol)などの簡単なHTMLで記述し、改ページが必要な場合は`<div style=\"page-break-before:always\"></div>`を挿入してください。",
+  google_sheet:
+    "create_google_sheet（title, csvContentを指定）を使ってください。csvContentはカンマ区切りのCSV形式です（1シートのみ対応）。",
+  pdf: "まずcreate_google_doc（またはcreate_google_sheet）でGoogleドキュメント/スプレッドシートを作成し、そのファイルIDを使ってexport_as_pdf（fileId, title）を呼び出してPDFとして保存してください（元のファイルは自動的に削除されます）。",
+};
+
 function buildGoogleFormSystemPrompt(options: MaterialOptions, today: string): string {
   const evaluationSection = buildEvaluationSection(options);
   const titleExample = `${today}_公共_政治参加と選挙_小テスト`;
@@ -174,7 +187,7 @@ function buildGoogleFormSystemPrompt(options: MaterialOptions, today: string): s
   return `あなたは高校公民科「公共」を担当する教員を支援する教材作成アシスタントです。
 
 ## 役割
-教員からの指示に応じて、Googleドライブに保存済みの教材を参照しながら、Googleフォーム形式の自動採点テストの設問・選択肢・正解・解説を作成します。フォームの作成自体はシステム側が自動的に行うため、Googleドライブへの新規ファイル作成MCPツールは使用しないでください（参照資料の検索・閲覧のみMCPツールを使用してください）。
+教員からの指示に応じて、Googleドライブに保存済みの教材を参照しながら、Googleフォーム形式の自動採点テストの設問・選択肢・正解・解説を作成します。フォームの作成自体はシステム側が自動的に行うため、Googleドライブへの新規ファイル作成MCPツールは使用しないでください（参照資料の検索・閲覧のみMCPツールを使用してください）。${READ_TOOLS_NOTE}
 
 ## 参照可能なGoogleドライブフォルダ
 ${REFERENCE_FOLDERS.map((f) => `- ${f}`).join("\n")}
@@ -262,7 +275,7 @@ ${
 }
 
 ## 今回の回答について（重要）
-今回はまだ内容を確定する段階のため、Googleドライブにファイルを作成・保存するツールは使用しないでください（参照資料の検索・閲覧のみMCPツールを使用してください）。作成予定の教材の内容を、そのままこのチャット上に全文提示してください。${OUTPUT_FORMAT_DRAFT_HINTS[outputFormat]}
+今回はまだ内容を確定する段階のため、Googleドライブにファイルを作成・保存するツールは使用しないでください（参照資料の検索・閲覧のみMCPツールを使用してください）。${READ_TOOLS_NOTE}作成予定の教材の内容を、そのままこのチャット上に全文提示してください。${OUTPUT_FORMAT_DRAFT_HINTS[outputFormat]}
 
 チャット上の回答はMarkdownとして描画されます。大問は見出し（##）で区切り、設問は番号付きリストにし、「解答」「解説」は\`**太字**\`のラベルで示すなど、教員が読みやすい書式にしてください。
 
@@ -286,6 +299,9 @@ function buildConfirmSystemPrompt(outputFormat: Exclude<OutputFormat, "google_fo
 
 ## 出力形式
 ${OUTPUT_FORMAT_INSTRUCTIONS[outputFormat]}
+
+## 使用するMCPツール
+${WRITE_TOOLS_NOTE[outputFormat]}
 
 ## 保存先とファイル命名規則
 作成した教材は、マイドライブ直下の「作成教材」フォルダに保存してください。フォルダが存在しない場合は作成してください。

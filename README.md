@@ -6,7 +6,13 @@
 
 ## 想定アーキテクチャ
 
-フロントエンド（Next.js, Vercelホスティング）→ バックエンド（Next.js API Routes）→ Anthropic API（mcp_serversにGoogle DriveのMCPサーバーURLを渡す）→ Google OAuth認証
+フロントエンド（Next.js, Vercelホスティング）→ バックエンド（Next.js API Routes）→ Anthropic API（mcp_serversに、このアプリ自身が内蔵するGoogle Drive MCPサーバーのURLを渡す）→ Google OAuth認証
+
+Google Drive操作用のMCPサーバーは外部サービスではなく、このリポジトリの `/api/mcp` として組み込まれています（詳しくは後述）。そのため、このリポジトリと以下の3つを用意するだけで動かせます。
+
+1. Anthropic APIキー
+2. Google CloudのOAuthクライアント（Drive API・Forms APIを有効化したもの）
+3. デプロイ先（Vercel無料枠、または自分のPC）
 
 ## セットアップ
 
@@ -17,11 +23,11 @@ cp .env.example .env.local
 
 `.env.local` に以下を設定してください。
 
-- `ANTHROPIC_API_KEY`: Anthropic APIキー
+- `ANTHROPIC_API_KEY`: Anthropic APIキー（[console.anthropic.com](https://console.anthropic.com/)で発行）
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: Google OAuthクライアント情報
 - `GOOGLE_REDIRECT_URI`: OAuthコールバックURL（例: `http://localhost:3000/api/auth/callback`）
 - `AUTH_SECRET`: セッション/トークン暗号化用シークレット（`openssl rand -base64 32` 等で生成）
-- `GOOGLE_DRIVE_MCP_SERVER_URL`: Google Drive MCPサーバーのURL
+- `GOOGLE_DRIVE_MCP_SERVER_URL`: 省略可。Vercelにデプロイする場合、未設定であれば自動的に自分自身のデプロイURL（`VERCEL_URL`環境変数）配下の`/api/mcp`を使います。ローカル開発など`VERCEL_URL`が使えない環境や、外部の別のMCPサーバーを使いたい場合のみ、`https到達可能なURL/api/mcp`の形式で明示的に設定してください。
 
 ### Google OAuthクライアントの準備
 
@@ -39,11 +45,24 @@ cp .env.example .env.local
 - `/api/auth/callback`: 認可コードをトークンに交換し、暗号化したセッションをCookieに保存
 - `/api/auth/logout`: セッションCookieを削除
 
+### Google Drive MCPサーバー（組み込み）
+
+`/api/mcp`（`src/app/api/mcp/route.ts`）が、このアプリ専用の最小限のGoogle Drive MCPサーバーです。`@modelcontextprotocol/sdk`の`WebStandardStreamableHTTPServerTransport`を使い、セッションを保持しないステートレスなStreamable HTTPサーバーとして実装しています（サーバーレス環境でリクエストごとに別インスタンスで処理されても問題ありません）。
+
+Anthropic APIのMCP connectorは、ログイン中の教員のGoogleアクセストークンを`Authorization: Bearer`ヘッダーに乗せてこのエンドポイントを呼び出します。MCPサーバー自体は認証状態を一切持たず、受け取ったアクセストークンでそのままGoogle Drive APIを呼び出す薄いプロキシです（`src/lib/drive-mcp-tools.ts`, `src/lib/google-drive.ts`）。追加のOAuthスコープは不要です（既存の`drive`スコープの範囲で完結します）。
+
+提供しているツール:
+
+- `search_drive_files` / `list_drive_folder`: 参照フォルダの検索・一覧
+- `read_drive_file`: Googleドキュメント・スプレッドシート・PDFの内容をテキストとして読み取る（PDFはDrive側のコピー+OCR変換の仕組みを使って抽出し、一時ファイルは自動削除）
+- `create_google_doc` / `create_google_sheet`: HTML／CSVコンテンツをアップロードし、Driveの自動変換機能でGoogleドキュメント／スプレッドシートとして「作成教材」フォルダに作成する
+- `export_as_pdf`: 作成済みのドキュメント/スプレッドシートをPDFとして書き出し、元ファイルを削除する
+
+HTMLアップロードによる変換ベースの作成のため、Google Docs/Sheets APIの複雑なドキュメント構造操作（複数タブのスプレッドシートなど）は非対応です。用途（問題・プリント・小テストの作成）には十分な表現力を持たせつつ、実装をシンプルに保っています。
+
 ### 教材作成チャット（Anthropic API連携）
 
-`/api/chat` がAnthropic APIの[MCP connector](https://platform.claude.com/docs/en/agents-and-tools/mcp-connector)（beta）を使い、`mcp_servers` にGoogle Drive MCPサーバーのURLとログイン中ユーザーのGoogleアクセストークンを渡してリクエストします。モデルはコスト管理（Claude Proのプログラム利用クレジット月20ドル相当）を踏まえ `claude-sonnet-5`・`effort: medium` を既定にしています（`src/lib/anthropic.ts`）。システムプロンプト（参照フォルダ・出力形式・保存先の指示）は `src/lib/prompts.ts` にまとめています。
-
-`GOOGLE_DRIVE_MCP_SERVER_URL` にはGoogle Drive操作用のMCPサーバー（Streamable HTTP）のURLを設定してください。
+`/api/chat` がAnthropic APIの[MCP connector](https://platform.claude.com/docs/en/agents-and-tools/mcp-connector)（beta）を使い、`mcp_servers` に上記のMCPサーバーのURLとログイン中ユーザーのGoogleアクセストークンを渡してリクエストします。モデルはコスト管理（Claude Proのプログラム利用クレジット月20ドル相当）を踏まえ `claude-sonnet-5`・`effort: medium` を既定にしています（`src/lib/anthropic.ts`）。システムプロンプト（参照フォルダ・出力形式・保存先・使用するMCPツールの指示）は `src/lib/prompts.ts` にまとめています。
 
 チャット画面には出力形式に加えて「出題設定」（大問数・問題数・難易度・出題形式・解答/解説を別紙にするか・教科書の参照ページ範囲・観点別評価（観点1〜3）・グラフ/表を用いた思考力を問う問題を含めるか）を選択できます。大問数・問題数はよく使う数値のクイック選択ボタンと自由入力欄を組み合わせており、プリセット以外の数も指定できます。「出題設定」は普段は現在の設定内容（出力形式・大問数・問題数など）を1行で示す帯だけを表示し、「編集する」を押したときだけ全項目のフォームを展開する構成にして、入力欄まわりをすっきり保っています。展開後もよく使う項目（出力形式・大問数・問題数）は常に表示し、それ以外は「詳細設定を表示」でさらに開閉できます。選択内容は`materialOptions`としてリクエストに含まれ、`buildSystemPrompt`（`src/lib/prompts.ts`）がシステムプロンプトに反映します。作成される教材には、問題数などの指定の有無にかかわらず必ず解答・解説を付ける方針にしています。
 
@@ -90,11 +109,17 @@ npm run dev
 
 ## デプロイ（Vercel無料枠）
 
-1. GitHubリポジトリをVercelにインポートする（Frameworkは自動検出されるはず）
-2. Vercelプロジェクトの Settings → Environment Variables に `.env.example` と同じ変数を設定する
-   - `GOOGLE_REDIRECT_URI` は本番URL（例: `https://<your-app>.vercel.app/api/auth/callback`）にする
-3. Google Cloud ConsoleのOAuthクライアントの「承認済みのリダイレクトURI」に、本番の `GOOGLE_REDIRECT_URI` を追加する
-4. デプロイ後、本番URLにアクセスしてGoogleログイン〜教材作成チャットが動作することを確認する
+1. **Anthropic APIキーを用意する**: [console.anthropic.com](https://console.anthropic.com/)でAPIキーを発行する（Claude Proの契約がある場合、月20ドル相当のプログラム利用クレジットが適用される場合があります。詳細はAnthropicの案内を確認してください）。
+2. **Google CloudのOAuthクライアントを準備する**（上記「Google OAuthクライアントの準備」参照）。この時点ではリダイレクトURIは仮のものでよく、後述の手順4で本番URLを追加します。
+3. GitHubリポジトリをVercelにインポートする（Frameworkは自動検出されるはず）
+4. Vercelプロジェクトの Settings → Environment Variables に以下を設定する
+   - `ANTHROPIC_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_SECRET`
+   - `GOOGLE_REDIRECT_URI`: 本番URL（例: `https://<your-app>.vercel.app/api/auth/callback`）。デプロイ後に払い出される実際のURLに合わせて後で更新してもよい
+   - `GOOGLE_DRIVE_MCP_SERVER_URL`: 通常は未設定のままでよい（自動的に自分自身の`/api/mcp`を使う）
+5. デプロイを実行し、払い出された本番URLを確認する
+6. Google Cloud ConsoleのOAuthクライアントの「承認済みのリダイレクトURI」に、本番の`GOOGLE_REDIRECT_URI`（例: `https://<your-app>.vercel.app/api/auth/callback`）を追加する。`GOOGLE_REDIRECT_URI`の環境変数も実際のURLと一致させて再デプロイする
+7. 本番URLにアクセスしてGoogleでログインし、簡単な指示（例:「政治参加と選挙の単元で選択式の小テストを3問作成してください」）を送って、下書きの提示→「この内容で保存する」→Googleドライブの「作成教材」フォルダにファイルが作成されることを確認する
+8. Googleフォーム出力を使う場合は、一度ログアウトして再度Googleでログインし、`forms.body`・`forms.responses.readonly`スコープの権限を許可し直す
 
 ### 無料（Hobby）プランの制約
 

@@ -135,11 +135,16 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const mcpServerUrl = process.env.GOOGLE_DRIVE_MCP_SERVER_URL;
+  // GOOGLE_DRIVE_MCP_SERVER_URL未設定時は、同じデプロイ内蔵のMCPサーバー
+  // （src/app/api/mcp/route.ts）をVercelのデプロイURLから自動的に使う。
+  const mcpServerUrl =
+    process.env.GOOGLE_DRIVE_MCP_SERVER_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/api/mcp` : undefined);
   if (!mcpServerUrl) {
-    return new Response("サーバー設定エラー: GOOGLE_DRIVE_MCP_SERVER_URL が未設定です。", {
-      status: 500,
-    });
+    return new Response(
+      "サーバー設定エラー: GOOGLE_DRIVE_MCP_SERVER_URL が未設定です（ローカル開発時はhttps到達可能なURLを明示的に設定してください）。",
+      { status: 500 },
+    );
   }
 
   const body = await request.json().catch(() => null);
