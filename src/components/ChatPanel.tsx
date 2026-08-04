@@ -12,6 +12,7 @@ import {
   type Difficulty,
   type EvaluationPerspective,
   type OutputFormat,
+  type PromptPhase,
   type QuestionType,
 } from "@/lib/prompts";
 import type { ChatStreamEvent } from "@/lib/chat-events";
@@ -23,12 +24,15 @@ interface Message {
   settingsSummary?: string;
   outputFormatUsed?: OutputFormat;
   isConfirmation?: boolean;
+  /** このアシスタント応答がどの承認ゲートの段階で生成されたか */
+  phaseUsed?: PromptPhase;
 }
 
 interface SendArgs {
   text: string;
   confirmSave?: boolean;
   outputFormatOverride?: OutputFormat;
+  phase?: PromptPhase;
 }
 
 const OUTPUT_FORMATS = Object.keys(OUTPUT_FORMAT_LABELS) as OutputFormat[];
@@ -465,12 +469,18 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
     return [OUTPUT_FORMAT_LABELS[outputFormat], buildSettingsSummary()].filter(Boolean).join(" ・ ");
   }
 
-  async function sendMessage(text: string, opts?: { confirmSave?: boolean; outputFormatOverride?: OutputFormat }) {
+  async function sendMessage(
+    text: string,
+    opts?: { confirmSave?: boolean; outputFormatOverride?: OutputFormat; phase?: PromptPhase },
+  ) {
     const confirmSave = opts?.confirmSave ?? false;
     const effectiveOutputFormat = opts?.outputFormatOverride ?? outputFormat;
+    // 段階の指定がない場合（教員が自由入力したとき）は、直前の応答と同じ段階に
+    // とどまる。プランへの修正指示はプラン、問題案への修正指示は問題案として扱う。
+    const effectivePhase: PromptPhase = confirmSave ? "confirm" : (opts?.phase ?? currentPhase());
 
     setError(null);
-    setLastSend({ text, confirmSave, outputFormatOverride: opts?.outputFormatOverride });
+    setLastSend({ text, confirmSave, outputFormatOverride: opts?.outputFormatOverride, phase: opts?.phase });
     const settingsSummary = confirmSave ? undefined : buildSettingsSummary();
     const nextMessages: Message[] = [
       ...messages,
@@ -484,6 +494,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
         statuses: [],
         outputFormatUsed: effectiveOutputFormat,
         isConfirmation: confirmSave,
+        phaseUsed: effectivePhase,
       },
     ]);
     setInput("");
@@ -501,6 +512,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
           messages: nextMessages.map(({ role, content }) => ({ role, content })),
           outputFormat: effectiveOutputFormat,
           confirmSave,
+          phase: effectivePhase,
           materialOptions: {
             questionCount: parsePositiveInt(questionCountInput),
             majorQuestionCount: parsePositiveInt(majorQuestionCountInput),
@@ -579,6 +591,29 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
     void sendMessage(lastSend.text, {
       confirmSave: lastSend.confirmSave,
       outputFormatOverride: lastSend.outputFormatOverride,
+      phase: lastSend.phase,
+    });
+  }
+
+  // 直前のアシスタント応答の段階。まだ何もなければ「プラン提示」から始める。
+  function currentPhase(): PromptPhase {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const message = messages[i];
+      if (message.role === "assistant" && message.phaseUsed) {
+        // 保存が完了した後の新しい指示は、また最初（プラン提示）から始める。
+        return message.phaseUsed === "confirm" ? "plan" : message.phaseUsed;
+      }
+    }
+    return "plan";
+  }
+
+  function handleApprovePlan() {
+    if (isSending) return;
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "assistant" || !last.content || last.phaseUsed !== "plan") return;
+    void sendMessage("このプランで問題案を作成してください。", {
+      phase: "draft",
+      outputFormatOverride: last.outputFormatUsed,
     });
   }
 
@@ -590,6 +625,7 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
       last.role !== "assistant" ||
       !last.content ||
       last.isConfirmation ||
+      last.phaseUsed !== "draft" ||
       !last.outputFormatUsed ||
       last.outputFormatUsed === "google_form"
     ) {
@@ -740,13 +776,14 @@ export function ChatPanel({ onMaterialCreated }: ChatPanelProps) {
                       !message.isConfirmation &&
                       !!message.outputFormatUsed &&
                       message.outputFormatUsed !== "google_form" &&
-                      index === messages.length - 1 && (
+                      index === messages.length - 1 &&
+                      (message.phaseUsed === "plan" || message.phaseUsed === "draft") && (
                         <button
                           type="button"
-                          onClick={handleConfirmSave}
+                          onClick={message.phaseUsed === "plan" ? handleApprovePlan : handleConfirmSave}
                           className="self-start rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-foreground shadow-sm transition-colors hover:brightness-110"
                         >
-                          この内容で保存する
+                          {message.phaseUsed === "plan" ? "このプランで進める" : "この内容で保存する"}
                         </button>
                       )}
                   </div>

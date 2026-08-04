@@ -2,6 +2,7 @@ import "server-only";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
+  copyFileToQuestionModelFolder,
   createFileFromContent,
   deleteDriveFile,
   ensureMaterialsFolderId,
@@ -179,6 +180,25 @@ export function registerDriveTools(server: McpServer, accessToken: string): void
         return textResult(`PDFを作成しました。\nファイルID: ${file.id}\nリンク: ${file.webViewLink}`);
       } catch (error) {
         return errorResult(error, "PDFの作成に失敗しました。");
+      }
+    },
+  );
+
+  server.registerTool(
+    "save_to_question_model_folder",
+    {
+      description:
+        "完成した教材を「12_問題モデルフォルダ」に複製し、次回以降に参照する問題モデルとして登録する。作成教材フォルダへの保存が済んだあとに呼び出す。",
+      inputSchema: {
+        fileId: z.string().describe("複製する完成ファイルのID（create_google_doc/export_as_pdfなどの結果）"),
+      },
+    },
+    async ({ fileId }) => {
+      try {
+        const file = await copyFileToQuestionModelFolder(accessToken, fileId);
+        return textResult(`問題モデルフォルダに登録しました。\nリンク: ${file.webViewLink}`);
+      } catch (error) {
+        return errorResult(error, "問題モデルフォルダへの保存に失敗しました。");
       }
     },
   );

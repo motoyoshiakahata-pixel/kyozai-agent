@@ -35,6 +35,8 @@ interface ChatMessage {
 
 const MAX_CONTINUATIONS = 3;
 
+const PROMPT_PHASES: PromptPhase[] = ["plan", "draft", "confirm"];
+
 const DIFFICULTIES: Difficulty[] = ["auto", "basic", "standard", "advanced"];
 const QUESTION_TYPES: QuestionType[] = [
   "auto",
@@ -157,7 +159,13 @@ export async function POST(request: NextRequest) {
   }
 
   const materialOptions = parseMaterialOptions(body);
-  const phase: PromptPhase = confirmSave ? "confirm" : "draft";
+  // 承認ゲート: plan（作成プラン提示）→ draft（問題案提示）→ confirm（保存）。
+  // confirmSaveは保存ボタン由来の指定で、phaseより優先する。
+  const phase: PromptPhase = confirmSave
+    ? "confirm"
+    : PROMPT_PHASES.includes(body?.phase)
+      ? body.phase
+      : "plan";
 
   const client = getAnthropicClient();
   const encoder = new TextEncoder();

@@ -1,5 +1,9 @@
 import "server-only";
-import { REFERENCE_FOLDERS, type DriveFolderAccessResult } from "@/lib/drive-folders";
+import {
+  REFERENCE_FOLDERS,
+  getReferenceFolder,
+  type DriveFolderAccessResult,
+} from "@/lib/drive-folders";
 import {
   formatPagedDocument,
   parsePageRangeFromFileName,
@@ -379,6 +383,34 @@ export async function ensureMaterialsFolderId(accessToken: string): Promise<stri
 
   const created: { id: string } = await res.json();
   return created.id;
+}
+
+// 完成した教材を「12_問題モデルフォルダ」に複製し、次回以降の参照対象に加える。
+// Drive APIでは1ファイルが複数フォルダに属せないため、コピーを作成する
+// （「作成教材」フォルダの原本を後から編集しても、こちらには反映されない）。
+export async function copyFileToQuestionModelFolder(
+  accessToken: string,
+  fileId: string,
+): Promise<DriveMaterial> {
+  const folder = getReferenceFolder("question_model");
+
+  const res = await fetch(
+    `${DRIVE_FILES_URL}/${fileId}/copy?fields=id,name,mimeType,webViewLink,createdTime`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ parents: [folder.id] }),
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(`「${folder.name}」への保存に失敗しました: ${res.status}`);
+  }
+
+  return res.json();
 }
 
 // Googleフォームなど、Forms APIなどマイドライブ直下に作成されるファイルを
