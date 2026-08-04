@@ -13,13 +13,24 @@
 
 いずれもビルド・型チェックは通っているが、**Anthropic APIキーとGoogleログインが必要なため、実際の生成動作はまだ未検証**。
 
+## デプロイ状況
+
+Vercelへのデプロイ済み。本番URLは <https://kyozai-agent.vercel.app>。
+
+- Vercelチーム: `007`（Hobby / 無料枠）
+- 本番ブランチ（Settings → Environments → Production → Branch Tracking）は
+  `claude/high-school-textbook-agent-rrkqnc` に設定済み
+- 環境変数は `ANTHROPIC_API_KEY` / `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` /
+  `AUTH_SECRET` の4つを登録済み（`GOOGLE_REDIRECT_URI`と
+  `GOOGLE_DRIVE_MCP_SERVER_URL`はアプリが自動判別するため未設定でよい）
+
+ステップ5でVercelへのログインが失敗していた原因は、GitHubのアカウント違い
+（`mcir2329-ctrl` でログインしていた）だった可能性が高い。
+
 ## 次にやること
 
-**教員本人によるVercelへの実デプロイ。** 手順は [DEPLOY.md](./DEPLOY.md) にはじめての方向けにまとめてあるので、これを上から順に進めてもらう。
-
-前回はステップ5（Vercelへのログイン）の「Looks like something went wrong!」で止まっていた。DEPLOY.mdに5つの対処法を記載済み（通常ウィンドウ／広告ブロッカーオフ／別ブラウザ／Cookie削除／メールログインへの切り替え）。
-
-デプロイが済んだら、DEPLOY.mdのステップ10の動作確認を行い、次を確認する:
+DEPLOY.mdのステップ9（リダイレクトURIの登録）とステップ10（動作確認）を進め、
+次を確認する:
 
 1. 参照フォルダ4つがすべて「接続OK」になるか
 2. プラン提示 → 問題案 → 保存の流れが通るか
