@@ -167,9 +167,20 @@ const REFERENCE_FOLDER_LINES = REFERENCE_FOLDERS.map(
   (f) => `- 「${f.name}」: ${f.description}`,
 ).join("\n");
 
+// 出典・数値の扱いに関する厳守事項。
+//
+// 資料集PDFはスキャン画像をOCRしたテキストのため、数値は概ね正確に読み取れる一方、
+// 固有名詞・人名には誤字が混ざる（例:「サイード」→「サイカード」、「横内団地」→「積内団地」）。
+// 一方、教科書PDFはテキスト情報を持つPDFで、表記も正確。この違いを前提にした指示。
+const SOURCE_ACCURACY_NOTE = `## 出典・数値の扱い（厳守）
+- 統計・グラフの数値や、資料の記述内容は、read_drive_fileで実際に読み取ったテキストに現れるものだけを使ってください。記憶や推測で数値を書いてはいけません。
+- ページ番号を出典として示すときは、read_drive_fileの結果に付いている「--- p.N ---」の見出しのページ番号をそのまま使ってください。ツールが「ページの区切りを特定できませんでした」と返した場合は、個別のページ番号ではなくファイル名の範囲（例: p.27-30）で示してください。
+- 資料集PDFはスキャン画像をOCRしたテキストです。数値は概ね正確ですが、人名・地名・専門用語には読み取り誤りが混ざります。用語や人名を問題文・選択肢で使う場合は、教科書PDF（テキストが正確）の表記を優先し、資料集側の表記が疑わしいときはその語を出題に使わないでください。
+- 資料集に十分な統計データが見つからない単元では、資料読み取り型の設問を無理に作らず、教科書の記述に基づく設問に切り替えてください（数値を創作してはいけません）。`;
+
 // 参照資料の検索・閲覧に使うMCPツールの案内（読み取り専用）。
 const READ_TOOLS_NOTE =
-  "参照資料の検索・閲覧には次のMCPツールを使用してください: search_drive_files（キーワード検索。folderNameで絞り込み可）、list_drive_folder（フォルダ直下の一覧）、read_drive_file（ファイル内容の読み取り。Googleドキュメント・スプレッドシート・PDFに対応）。";
+  "参照資料の検索・閲覧には次のMCPツールを使用してください: search_drive_files（キーワード検索。folderNameで絞り込み可）、list_drive_folder（フォルダ直下の一覧）、read_drive_file（ファイル内容の読み取り。Googleドキュメント・スプレッドシート・PDFに対応。PDFはpagesで必要なページだけを指定できる）。";
 
 // ファイル作成に使うMCPツールの案内（出力形式ごと）。
 const WRITE_TOOLS_NOTE: Record<Exclude<OutputFormat, "google_form">, string> = {
@@ -193,6 +204,8 @@ function buildGoogleFormSystemPrompt(options: MaterialOptions, today: string): s
 ${REFERENCE_FOLDER_LINES}
 
 これらのフォルダの内容を検索・参照して、教科書の該当範囲や過去問の傾向を踏まえた設問を作成してください。参照した資料（章・ページ範囲・年度など）は教員向けの説明文の中で分かるように示してください。
+
+${SOURCE_ACCURACY_NOTE}
 
 ## 出題設定
 ${buildQuestionSettingsSection(options)}
@@ -261,6 +274,8 @@ function buildDraftSystemPrompt(
 ${REFERENCE_FOLDER_LINES}
 
 これらのフォルダの内容を検索・参照して、教科書の該当範囲や過去問の傾向を踏まえた教材を作成してください。参照した資料（章・ページ範囲・年度など）は回答の中で分かるように示してください。
+
+${SOURCE_ACCURACY_NOTE}
 
 ## 出題設定
 ${buildQuestionSettingsSection(options)}

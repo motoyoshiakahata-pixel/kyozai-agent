@@ -1,5 +1,11 @@
 import "server-only";
 import { REFERENCE_FOLDERS, type DriveFolderAccessResult } from "@/lib/drive-folders";
+import {
+  formatPagedDocument,
+  parsePageRangeFromFileName,
+  parseRequestedPages,
+  splitTextIntoPages,
+} from "@/lib/reference-pages";
 
 const DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files";
 const MATERIALS_FOLDER_NAME = "作成教材";
@@ -192,13 +198,26 @@ async function exportFileAsText(accessToken: string, fileId: string, mimeType: s
   return res.text();
 }
 
+async function getFileName(accessToken: string, fileId: string): Promise<string> {
+  const res = await fetch(`${DRIVE_FILES_URL}/${fileId}?fields=name`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return "";
+  const file: { name?: string } = await res.json();
+  return file.name ?? "";
+}
+
 // Googleドキュメント/スプレッドシート/PDFの内容をテキストとして読み取る。
 // PDFはネイティブのテキストを持たないため、一時的にGoogleドキュメントへ
 // コピー（Drive側でOCR変換）してからテキストを抽出し、コピーは削除する。
+//
+// PDFはさらに、ファイル名のページ範囲（例:「27-30 伝統文化.pdf」）をもとに
+// ページごとに区切って返す。pagesを指定すると、そのページだけを返す。
 export async function readDriveFileContent(
   accessToken: string,
   fileId: string,
   mimeType: string,
+  options: { pages?: string } = {},
 ): Promise<string> {
   if (mimeType === "application/vnd.google-apps.document") {
     return exportFileAsText(accessToken, fileId, "text/plain");
@@ -219,14 +238,19 @@ export async function readDriveFileContent(
       throw new Error(`PDFのテキスト変換に失敗しました: ${copyRes.status}`);
     }
     const copy: { id: string } = await copyRes.json();
+    let rawText: string;
     try {
-      return await exportFileAsText(accessToken, copy.id, "text/plain");
+      rawText = await exportFileAsText(accessToken, copy.id, "text/plain");
     } finally {
       await fetch(`${DRIVE_FILES_URL}/${copy.id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${accessToken}` },
       }).catch(() => {});
     }
+
+    const fileName = await getFileName(accessToken, fileId);
+    const paged = splitTextIntoPages(rawText, parsePageRangeFromFileName(fileName));
+    return formatPagedDocument(fileName || "PDF", paged, parseRequestedPages(options.pages));
   }
   throw new Error(
     "このファイル形式は読み取れません（対応形式: Googleドキュメント・Googleスプレッドシート・PDF）。",
