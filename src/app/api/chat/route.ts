@@ -108,6 +108,13 @@ function parseMaterialOptions(body: unknown): MaterialOptions {
   };
 }
 
+// Anthropic APIが返したエラー本文。原因の切り分けに必要なので画面にも表示する
+// （APIキーなどの秘密情報は含まれない）。
+function apiErrorDetail(error: unknown): string {
+  const message = (error as { error?: { error?: { message?: unknown } } }).error?.error?.message;
+  return typeof message === "string" && message ? `\n\n詳細: ${message}` : "";
+}
+
 function describeError(error: unknown): string {
   if (error instanceof Anthropic.RateLimitError) {
     return "現在Anthropic APIへのアクセスが集中しています。しばらくしてから再度お試しください。";
@@ -116,16 +123,21 @@ function describeError(error: unknown): string {
     error instanceof Anthropic.AuthenticationError ||
     error instanceof Anthropic.PermissionDeniedError
   ) {
-    return "Anthropic APIの認証に失敗しました。管理者に環境変数の設定を確認してもらってください。";
+    return `Anthropic APIの認証に失敗しました。環境変数 ANTHROPIC_API_KEY の値を確認してください。${apiErrorDetail(error)}`;
   }
   if (error instanceof Anthropic.BadRequestError) {
-    return "リクエストの内容に問題があります。指示の内容を変えて再度お試しください。";
+    const detail = apiErrorDetail(error);
+    // 残高不足は最も多い原因なので、対処法まで案内する。
+    if (/credit balance|insufficient|billing/i.test(detail)) {
+      return `Anthropic APIの利用残高が不足しています。console.anthropic.com の Billing（請求）でクレジットを追加してください。${detail}`;
+    }
+    return `リクエストの内容に問題があります。${detail}`;
   }
   if (error instanceof Anthropic.APIConnectionError) {
     return "Anthropic APIまたはGoogle Drive MCPサーバーへの接続に失敗しました。しばらくしてから再度お試しください。";
   }
   if (error instanceof Anthropic.APIError) {
-    return `Anthropic APIでエラーが発生しました（${error.status ?? "unknown"}）。しばらくしてから再度お試しください。`;
+    return `Anthropic APIでエラーが発生しました（${error.status ?? "unknown"}）。${apiErrorDetail(error)}`;
   }
   return "エラーが発生しました。しばらくしてから再度お試しください。";
 }
