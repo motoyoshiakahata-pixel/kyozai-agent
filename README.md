@@ -177,3 +177,22 @@ npm run dev
 
 - Serverless Functionsの実行時間には上限があるため、`/api/chat` には `maxDuration = 60`（秒）を設定しています。教材生成に時間がかかりGoogleドライブ操作を伴う場合、60秒を超えるとタイムアウトする可能性があります。頻繁にタイムアウトする場合はVercelのProプランへの変更や、生成指示を分割する運用を検討してください。
 - Anthropic APIの呼び出しはClaude Proのプログラム利用クレジット（月20ドル相当）の範囲内を想定しており、追加課金は有効化していません。想定より頻度・分量が多い場合は`src/lib/anthropic.ts`の`CHAT_EFFORT`（既定: `medium`）を`low`に下げるなどしてコストを調整してください。
+
+## Claude Codeスキルとしての利用（Anthropic APIの費用をかけない方法）
+
+このWebアプリはAnthropic APIを従量課金で呼び出すため、教材を作成するたびに費用が発生します。費用をかけずに同じ設計で教材を作りたい場合は、リポジトリに同梱している**Claude Codeのスキル**（`.claude/skills/kyozai/SKILL.md`）を使います。
+
+[claude.ai/code](https://claude.ai/code) でこのリポジトリのセッションを開き、`/kyozai` に続けて単元と問題数を指示すると、Claude CodeがGoogle Driveコネクタ経由で教科書PDF・資料集PDFを読み、承認ゲート（プラン→問題案→保存）を経てGoogleドキュメントを「作成教材」フォルダに作成します。Anthropic APIの従量課金は発生せず、Claude の契約の範囲内で利用できます。
+
+Webアプリ版と比べて実現できることの違いは次のとおりです。
+
+| 機能 | Webアプリ版 | Claude Codeスキル版 |
+| --- | :---: | :---: |
+| 教科書・資料集PDFの参照、出典ページの特定 | ○ | ○ |
+| 出題パターンA〜Eの自動選択、承認ゲート | ○ | ○ |
+| Googleドキュメントの作成、問題モデルフォルダへの登録 | ○ | ○ |
+| Googleフォーム（自動採点）の作成、回答の正答率分析 | ○ | × |
+| 専用のWeb画面 | ○ | ×（チャット） |
+| Anthropic APIの従量課金 | あり | なし |
+
+スキルとWebアプリは同じ設計（`src/lib/prompts.ts`・`src/lib/drive-folders.ts`・`src/lib/reference-pages.ts`）にもとづいているため、出題パターンや出典の扱いを変更するときは両方を更新してください。
