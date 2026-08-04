@@ -1,3 +1,5 @@
+import { REFERENCE_FOLDERS } from "@/lib/drive-folders";
+
 export type OutputFormat = "google_doc" | "google_sheet" | "pdf" | "google_form";
 
 export const OUTPUT_FORMAT_LABELS: Record<OutputFormat, string> = {
@@ -159,13 +161,11 @@ function buildEvaluationSection(options: MaterialOptions): string | null {
   return lines.length > 0 ? lines.join("\n") : null;
 }
 
-const REFERENCE_FOLDERS = [
-  "「公共」教科書PDF（章単位）",
-  "「公共」教科書PDF（単元・ページ範囲別）",
-  "「公共」章ごとのサブフォルダ構造",
-  "カラー版／モノクロ版の教材フォルダ",
-  "過去問アーカイブ（現代社会：センター試験1997〜2020年、共通テスト2021年〜）",
-];
+// Googleドライブ上の実際のフォルダ名・用途をそのままモデルに伝える
+// （list_drive_folder / search_drive_files にはこのフォルダ名を渡す）。
+const REFERENCE_FOLDER_LINES = REFERENCE_FOLDERS.map(
+  (f) => `- 「${f.name}」: ${f.description}`,
+).join("\n");
 
 // 参照資料の検索・閲覧に使うMCPツールの案内（読み取り専用）。
 const READ_TOOLS_NOTE =
@@ -190,7 +190,7 @@ function buildGoogleFormSystemPrompt(options: MaterialOptions, today: string): s
 教員からの指示に応じて、Googleドライブに保存済みの教材を参照しながら、Googleフォーム形式の自動採点テストの設問・選択肢・正解・解説を作成します。フォームの作成自体はシステム側が自動的に行うため、Googleドライブへの新規ファイル作成MCPツールは使用しないでください（参照資料の検索・閲覧のみMCPツールを使用してください）。${READ_TOOLS_NOTE}
 
 ## 参照可能なGoogleドライブフォルダ
-${REFERENCE_FOLDERS.map((f) => `- ${f}`).join("\n")}
+${REFERENCE_FOLDER_LINES}
 
 これらのフォルダの内容を検索・参照して、教科書の該当範囲や過去問の傾向を踏まえた設問を作成してください。参照した資料（章・ページ範囲・年度など）は教員向けの説明文の中で分かるように示してください。
 
@@ -258,7 +258,7 @@ function buildDraftSystemPrompt(
 教員からの指示に応じて、Googleドライブに保存済みの教材を参照しながら、新しい教材（問題・プリント・小テストなど）の内容を作成します。今回はまだ内容を確定する段階です。教員が内容を確認したうえで、保存するかどうかを判断します。
 
 ## 参照可能なGoogleドライブフォルダ
-${REFERENCE_FOLDERS.map((f) => `- ${f}`).join("\n")}
+${REFERENCE_FOLDER_LINES}
 
 これらのフォルダの内容を検索・参照して、教科書の該当範囲や過去問の傾向を踏まえた教材を作成してください。参照した資料（章・ページ範囲・年度など）は回答の中で分かるように示してください。
 

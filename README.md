@@ -60,6 +60,21 @@ Anthropic APIのMCP connectorは、ログイン中の教員のGoogleアクセス
 
 HTMLアップロードによる変換ベースの作成のため、Google Docs/Sheets APIの複雑なドキュメント構造操作（複数タブのスプレッドシートなど）は非対応です。用途（問題・プリント・小テストの作成）には十分な表現力を持たせつつ、実装をシンプルに保っています。
 
+### 参照フォルダの定義と疎通確認
+
+教材の根拠として参照するGoogleドライブのフォルダは `src/lib/drive-folders.ts` にフォルダIDで定義しています（いずれも「マイドライブ ＞ 2026【R8一宮】 ＞ R8公共」配下）。
+
+| 用途 | フォルダ名 | 必須 |
+| --- | --- | --- |
+| 教科書 | `04_教科書PDF` | ○ |
+| 資料集 | `06_資料集PDF` | ○ |
+| 実際の共通テスト問題 | `03_共通テスト関連` | － |
+| 過去に作成した問題・解答解説のモデル | `12_問題モデルフォルダ` | ○ |
+
+フォルダを移動したり作り直した場合は、Googleドライブでフォルダを開いたときのURL（`https://drive.google.com/drive/folders/【この部分】`）を、同ファイルの `id` に貼り替えてください。フォルダ名・説明はそのままシステムプロンプトの「参照可能なGoogleドライブフォルダ」に反映されます（`src/lib/prompts.ts`）。
+
+ログインすると、トップページの「参照フォルダ」カードに各フォルダへの疎通確認結果（接続OK／中身が空／見つかりません／権限がありません）とファイル件数・ファイル名の例が表示されます。確認はページ表示時にサーバー側（`checkReferenceFolders`, `src/lib/google-drive.ts`）で実施し、「接続を再確認」ボタンからは `/api/drive/health` を呼んで再取得します。教材を作り始める前に、必須フォルダがすべて「接続OK」になっていることを確認してください。
+
 ### 教材作成チャット（Anthropic API連携）
 
 `/api/chat` がAnthropic APIの[MCP connector](https://platform.claude.com/docs/en/agents-and-tools/mcp-connector)（beta）を使い、`mcp_servers` に上記のMCPサーバーのURLとログイン中ユーザーのGoogleアクセストークンを渡してリクエストします。モデルはコスト管理（Claude Proのプログラム利用クレジット月20ドル相当）を踏まえ `claude-sonnet-5`・`effort: medium` を既定にしています（`src/lib/anthropic.ts`）。システムプロンプト（参照フォルダ・出力形式・保存先・使用するMCPツールの指示）は `src/lib/prompts.ts` にまとめています。

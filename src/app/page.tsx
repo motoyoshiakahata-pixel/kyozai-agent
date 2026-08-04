@@ -1,15 +1,9 @@
-import { getSession } from "@/lib/session";
+import { getSession, getValidAccessToken } from "@/lib/session";
+import { checkReferenceFolders } from "@/lib/google-drive";
+import type { DriveFolderAccessResult } from "@/lib/drive-folders";
 import { Workspace } from "@/components/Workspace";
 import { ReferenceFoldersCard } from "@/components/ReferenceFoldersCard";
 import { OUTPUT_FORMAT_LABELS } from "@/lib/prompts";
-
-const referenceFolders = [
-  "「公共」教科書PDF（章単位）",
-  "「公共」教科書PDF（単元・ページ範囲別）",
-  "「公共」章ごとのサブフォルダ構造",
-  "カラー版／モノクロ版の教材フォルダ",
-  "過去問アーカイブ（センター試験1997〜2020年、共通テスト2021年〜）",
-];
 
 const outputFormats = Object.values(OUTPUT_FORMAT_LABELS);
 
@@ -30,6 +24,18 @@ export default async function Home(props: PageProps<"/">) {
   const errorMessage = errorCode
     ? (errorMessages[errorCode] ?? "エラーが発生しました。もう一度お試しください。")
     : null;
+
+  // ログイン済みなら、教材フォルダ・問題モデルフォルダに実際に到達できるかを
+  // 画面表示前に確認しておく（失敗しても画面自体は表示する）。
+  let folderHealth: DriveFolderAccessResult[] | null = null;
+  if (session) {
+    try {
+      const accessToken = await getValidAccessToken();
+      if (accessToken) folderHealth = await checkReferenceFolders(accessToken);
+    } catch (error) {
+      console.error("参照フォルダの疎通確認に失敗しました", error);
+    }
+  }
 
   return (
     <div className="flex flex-1 flex-col items-center border-t-4 border-accent bg-stone-50 font-sans dark:bg-black">
@@ -103,10 +109,10 @@ export default async function Home(props: PageProps<"/">) {
         </div>
 
         {session ? (
-          <Workspace referenceFolders={referenceFolders} />
+          <Workspace folderHealth={folderHealth} />
         ) : (
           <div className="mx-auto flex w-full max-w-3xl flex-col gap-10">
-            <ReferenceFoldersCard folders={referenceFolders} columns={2} />
+            <ReferenceFoldersCard columns={2} />
             <section className="card flex flex-col gap-3 rounded-2xl border border-stone-200/80 bg-white p-6 dark:border-stone-800 dark:bg-stone-950">
               <h2 className="font-serif text-lg font-bold text-black dark:text-stone-50">
                 出力形式
