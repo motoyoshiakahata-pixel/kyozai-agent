@@ -25,15 +25,17 @@ cp .env.example .env.local
 
 - `ANTHROPIC_API_KEY`: Anthropic APIキー（[console.anthropic.com](https://console.anthropic.com/)で発行）
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: Google OAuthクライアント情報
-- `GOOGLE_REDIRECT_URI`: OAuthコールバックURL（例: `http://localhost:3000/api/auth/callback`）
+- `GOOGLE_REDIRECT_URI`: 省略可。OAuthコールバックURL。未設定の場合、アクセス中のURLから自動的に組み立てます（`src/lib/app-url.ts`）。自動判別された値はアプリ画面の「セットアップ状況」カードに表示されるので、それをGoogle Cloud Consoleの「承認済みのリダイレクトURI」に登録してください
 - `AUTH_SECRET`: セッション/トークン暗号化用シークレット（`openssl rand -base64 32` 等で生成）
-- `GOOGLE_DRIVE_MCP_SERVER_URL`: 省略可。Vercelにデプロイする場合、未設定であれば自動的に自分自身のデプロイURL（`VERCEL_URL`環境変数）配下の`/api/mcp`を使います。ローカル開発など`VERCEL_URL`が使えない環境や、外部の別のMCPサーバーを使いたい場合のみ、`https到達可能なURL/api/mcp`の形式で明示的に設定してください。
+- `GOOGLE_DRIVE_MCP_SERVER_URL`: 省略可。未設定であれば、アクセス中のURL配下の`/api/mcp`（このアプリ内蔵のMCPサーバー）を自動的に使います。ローカル開発など、インターネットから到達できるhttpsのURLがない環境や、外部の別のMCPサーバーを使いたい場合のみ明示的に設定してください。
+
+デプロイの手順は [DEPLOY.md](./DEPLOY.md) に、はじめての方向けの詳しい手順としてまとめています。デプロイ後は、アプリ画面の「セットアップ状況」カードで環境変数の設定漏れと、Google Cloud Consoleに登録すべきリダイレクトURIを確認できます（`src/lib/app-url.ts`, `src/components/SetupStatusCard.tsx`）。
 
 ### Google OAuthクライアントの準備
 
 1. [Google Cloud Console](https://console.cloud.google.com/) でプロジェクトを作成
 2. 「APIとサービス」→「認証情報」からOAuth 2.0 クライアントID（ウェブアプリケーション）を作成
-3. 承認済みのリダイレクトURIに `GOOGLE_REDIRECT_URI` と同じ値を登録（本番環境用URLも追加）
+3. 承認済みのリダイレクトURIに、アプリ画面の「セットアップ状況」カードに表示されるURL（`https://<デプロイ先>/api/auth/callback`）を登録。ローカル開発用には `http://localhost:3000/api/auth/callback` も追加
 4. OAuth同意画面でテストユーザーとして開発者本人のGoogleアカウントを追加（マルチユーザー対応不要のため「テスト」モードのままでよい）
 5. Google Drive APIとGoogle Forms APIを有効化
 
@@ -165,12 +167,9 @@ npm run dev
 1. **Anthropic APIキーを用意する**: [console.anthropic.com](https://console.anthropic.com/)でAPIキーを発行する（Claude Proの契約がある場合、月20ドル相当のプログラム利用クレジットが適用される場合があります。詳細はAnthropicの案内を確認してください）。
 2. **Google CloudのOAuthクライアントを準備する**（上記「Google OAuthクライアントの準備」参照）。この時点ではリダイレクトURIは仮のものでよく、後述の手順4で本番URLを追加します。
 3. GitHubリポジトリをVercelにインポートする（Frameworkは自動検出されるはず）
-4. Vercelプロジェクトの Settings → Environment Variables に以下を設定する
-   - `ANTHROPIC_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_SECRET`
-   - `GOOGLE_REDIRECT_URI`: 本番URL（例: `https://<your-app>.vercel.app/api/auth/callback`）。デプロイ後に払い出される実際のURLに合わせて後で更新してもよい
-   - `GOOGLE_DRIVE_MCP_SERVER_URL`: 通常は未設定のままでよい（自動的に自分自身の`/api/mcp`を使う）
-5. デプロイを実行し、払い出された本番URLを確認する
-6. Google Cloud ConsoleのOAuthクライアントの「承認済みのリダイレクトURI」に、本番の`GOOGLE_REDIRECT_URI`（例: `https://<your-app>.vercel.app/api/auth/callback`）を追加する。`GOOGLE_REDIRECT_URI`の環境変数も実際のURLと一致させて再デプロイする
+4. Vercelプロジェクトの Settings → Environment Variables に `ANTHROPIC_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_SECRET` の4つを設定する（`GOOGLE_REDIRECT_URI`と`GOOGLE_DRIVE_MCP_SERVER_URL`は未設定でよい）
+5. デプロイを実行し、払い出された本番URLを開く
+6. アプリ画面の「セットアップ状況」カードに表示されるリダイレクトURIをコピーし、Google Cloud ConsoleのOAuthクライアントの「承認済みのリダイレクトURI」に追加する（環境変数の更新・再デプロイは不要）
 7. 本番URLにアクセスしてGoogleでログインし、簡単な指示（例:「政治参加と選挙の単元で選択式の小テストを3問作成してください」）を送って、下書きの提示→「この内容で保存する」→Googleドライブの「作成教材」フォルダにファイルが作成されることを確認する
 8. Googleフォーム出力を使う場合は、一度ログアウトして再度Googleでログインし、`forms.body`・`forms.responses.readonly`スコープの権限を許可し直す
 

@@ -1,5 +1,7 @@
 import { getSession, getValidAccessToken } from "@/lib/session";
 import { checkReferenceFolders } from "@/lib/google-drive";
+import { checkSetup } from "@/lib/app-url";
+import { SetupStatusCard } from "@/components/SetupStatusCard";
 import type { DriveFolderAccessResult } from "@/lib/drive-folders";
 import { Workspace } from "@/components/Workspace";
 import { ReferenceFoldersCard } from "@/components/ReferenceFoldersCard";
@@ -14,9 +16,10 @@ const errorMessages: Record<string, string> = {
 };
 
 export default async function Home(props: PageProps<"/">) {
-  const [session, searchParams] = await Promise.all([
+  const [session, searchParams, setupStatus] = await Promise.all([
     getSession(),
     props.searchParams,
+    checkSetup(),
   ]);
 
   const errorParam = searchParams?.error;
@@ -108,10 +111,17 @@ export default async function Home(props: PageProps<"/">) {
           </section>
         </div>
 
+        {session && !setupStatus.ready && (
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-10">
+            <SetupStatusCard status={setupStatus} />
+          </div>
+        )}
+
         {session ? (
           <Workspace folderHealth={folderHealth} />
         ) : (
           <div className="mx-auto flex w-full max-w-3xl flex-col gap-10">
+            <SetupStatusCard status={setupStatus} />
             <ReferenceFoldersCard columns={2} />
             <section className="card flex flex-col gap-3 rounded-2xl border border-stone-200/80 bg-white p-6 dark:border-stone-800 dark:bg-stone-950">
               <h2 className="font-serif text-lg font-bold text-black dark:text-stone-50">

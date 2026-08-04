@@ -22,6 +22,7 @@ import {
 import { describeMcpToolUse, type ChatStreamEvent } from "@/lib/chat-events";
 import { createQuizForm, extractQuizFormJson, parseQuizFormData } from "@/lib/google-forms";
 import { moveFileToMaterialsFolder } from "@/lib/google-drive";
+import { getMcpServerUrl } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
 // Vercel Hobby(無料)プランで設定可能な上限。教材生成が長時間化する場合は
@@ -137,14 +138,12 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // GOOGLE_DRIVE_MCP_SERVER_URL未設定時は、同じデプロイ内蔵のMCPサーバー
-  // （src/app/api/mcp/route.ts）をVercelのデプロイURLから自動的に使う。
-  const mcpServerUrl =
-    process.env.GOOGLE_DRIVE_MCP_SERVER_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/api/mcp` : undefined);
+  // GOOGLE_DRIVE_MCP_SERVER_URL未設定時は、このアプリ自身に内蔵しているMCPサーバー
+  // （src/app/api/mcp/route.ts）を、アクセス中のURLから組み立てて使う。
+  const mcpServerUrl = await getMcpServerUrl();
   if (!mcpServerUrl) {
     return new Response(
-      "サーバー設定エラー: GOOGLE_DRIVE_MCP_SERVER_URL が未設定です（ローカル開発時はhttps到達可能なURLを明示的に設定してください）。",
+      "サーバー設定エラー: MCPサーバーのURLを判別できませんでした。ローカル開発など、インターネットから到達できるhttpsのURLがない環境では、GOOGLE_DRIVE_MCP_SERVER_URL を明示的に設定してください。",
       { status: 500 },
     );
   }
