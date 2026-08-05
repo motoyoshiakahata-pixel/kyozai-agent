@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#2F6F5E" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14181F" media="(prefers-color-scheme: dark)">
+<title>公共 一問一答ドリル</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap');
+:root{
+  --bg:#F6F7F9; --surface:#FFFFFF; --surface-alt:#F1F3F6;
+  --ink:#1A2233; --ink-soft:#6B7280; --ink-faint:#737C89;
+  --accent:#2F6F5E; --accent-dark:#234F42; --accent-light:#E6F1EE;
+  --gold:#B8933E; --gold-light:#F3E9D2;
+  --border:#E4E7EC;
+  --correct:#2F8F5B; --wrong:#C4432E;
+  --card-shadow:0 1px 2px rgba(16,24,40,0.04), 0 8px 20px rgba(16,24,40,0.06);
+  --card-shadow-hover:0 4px 10px rgba(16,24,40,0.06), 0 16px 32px rgba(16,24,40,0.10);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#14181F; --surface:#1D232D; --surface-alt:#262E3A;
+    --ink:#EAEDF2; --ink-soft:#A7AFBC; --ink-faint:#8A93A2;
+    --accent:#4FA98C; --accent-dark:#6FC2A6; --accent-light:#1E3C34;
+    --gold:#D6B25E; --gold-light:#3A3120;
+    --border:#313A47;
+    --correct:#4FAE78; --wrong:#E06B54;
+    --card-shadow:0 1px 2px rgba(0,0,0,0.25), 0 8px 20px rgba(0,0,0,0.35);
+    --card-shadow-hover:0 4px 10px rgba(0,0,0,0.3), 0 16px 32px rgba(0,0,0,0.45);
+  }
+}
+*{box-sizing:border-box;}
+body{
+  margin:0; min-height:100vh;
+  background:
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 42%),
+    radial-gradient(circle at 88% 6%, color-mix(in srgb, var(--gold) 10%, transparent), transparent 40%),
+    var(--bg);
+  font-family:'Zen Kaku Gothic New', sans-serif; color:var(--ink);
+  display:flex; flex-direction:column; align-items:center; padding:32px 20px 60px;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{ position:relative; width:100%; max-width:min(1000px, 94vw); }
+.drill-content{ max-width:640px; margin:0 auto; }
+
+header{ text-align:center; margin-bottom:28px; }
+.kicker{ font-size:11.5px; font-weight:700; letter-spacing:0.28em; color:var(--accent); margin-bottom:8px; text-transform:uppercase; }
+h1{ font-weight:900; font-size:clamp(24px,5vw,34px); margin:0 0 6px; letter-spacing:-0.015em;
+  background:linear-gradient(100deg, var(--ink) 30%, var(--accent) 85%);
+  -webkit-background-clip:text; background-clip:text; color:transparent; }
+.subtitle{ font-size:13.5px; color:var(--ink-soft); }
+
+.continue-banner{ display:flex; align-items:center; gap:12px; width:100%; background:var(--accent); color:#fff; border:none; border-radius:16px; padding:14px 20px; margin-bottom:16px; cursor:pointer; text-align:left; font-family:inherit; }
+.continue-banner .continue-label{ font-size:11px; font-weight:700; background:rgba(255,255,255,0.2); padding:3px 10px; border-radius:999px; flex-shrink:0; }
+.continue-banner .continue-title{ flex:1; font-size:14.5px; font-weight:600; }
+.continue-banner .continue-arrow{ font-size:16px; }
+
+.overall-summary{ background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:18px 24px; margin-bottom:20px; box-shadow:var(--card-shadow); display:flex; flex-wrap:wrap; gap:20px; align-items:center; }
+.level-badge{ display:flex; align-items:center; gap:12px; }
+.level-ring{ --lv-pct:0; width:52px; height:52px; border-radius:50%; background:conic-gradient(var(--gold) calc(var(--lv-pct)*1%), var(--gold-light) 0); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.level-ring-inner{ width:42px; height:42px; border-radius:50%; background:var(--surface); display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:700; color:var(--ink); }
+.level-info{ display:flex; flex-direction:column; gap:2px; }
+.level-title{ font-size:14.5px; font-weight:700; }
+.level-sub{ font-size:10.5px; color:var(--ink-faint); }
+.dashboard-divider{ width:1px; align-self:stretch; background:var(--border); }
+.os-stat{ display:flex; flex-direction:column; gap:3px; min-width:64px; }
+.os-label{ font-size:10.5px; font-weight:600; color:var(--ink-faint); letter-spacing:0.04em; }
+.os-value{ font-size:20px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+.os-unit{ font-size:11px; font-weight:500; color:var(--ink-soft); margin-left:2px; }
+.overall-bar-outer{ flex:1; min-width:100px; height:5px; background:var(--surface-alt); border-radius:4px; overflow:hidden; }
+.overall-bar-inner{ height:100%; background:var(--accent); transition:width .4s ease; }
+
+.recommend-card{ display:flex; align-items:center; gap:14px; width:100%; background:var(--surface); border:1px solid var(--border); border-left:5px solid var(--rec-color, var(--accent)); border-radius:16px; padding:16px 20px; margin-bottom:20px; cursor:pointer; text-align:left; font-family:inherit; box-shadow:var(--card-shadow); }
+.recommend-card .rec-icon{ flex-shrink:0; width:36px; height:36px; border-radius:50%; background:var(--rec-color, var(--accent)); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; }
+.recommend-card .rec-body{ flex:1; min-width:0; }
+.recommend-card .rec-label{ font-size:10.5px; font-weight:700; color:var(--rec-color, var(--accent)); letter-spacing:0.06em; margin-bottom:2px; }
+.recommend-card .rec-title{ font-size:15px; font-weight:700; }
+.recommend-card .rec-desc{ font-size:12px; color:var(--ink-soft); }
+.recommend-card .rec-arrow{ font-size:18px; color:var(--ink-faint); }
+
+.viz-panels{ display:grid; grid-template-columns:1.4fr 1fr; gap:14px; margin-bottom:20px; }
+@media (max-width:700px){ .viz-panels{ grid-template-columns:1fr; } }
+.viz-panel{ background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:16px 18px; box-shadow:var(--card-shadow); }
+.viz-panel-title{ font-size:13.5px; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.viz-panel-sub{ font-size:10.5px; font-weight:500; color:var(--ink-faint); }
+.unit-heatmap{ display:flex; flex-wrap:wrap; gap:5px; }
+.heatmap-cell{ width:26px; height:26px; border-radius:6px; border:none; cursor:pointer; padding:0; transition:transform .12s ease; }
+.heatmap-cell:hover{ transform:scale(1.15); }
+.calendar-range{ font-size:11px; color:var(--ink-faint); font-weight:500; }
+.calendar-streak-line{ display:flex; align-items:baseline; gap:6px; margin-bottom:12px; }
+.streak-num{ font-size:22px; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums; }
+.streak-unit{ font-size:12px; color:var(--ink-soft); }
+.calendar-weekdays{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:6px; }
+.calendar-weekdays span{ text-align:center; font-size:10px; font-weight:700; color:var(--ink-faint); }
+.study-calendar{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+.calendar-day{ aspect-ratio:1; border-radius:8px; background:var(--surface-alt); border:1.5px solid transparent; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; color:var(--ink-faint); }
+.calendar-day.studied{ background:var(--accent); color:#fff; font-weight:700; }
+.calendar-day.is-today{ border-color:var(--gold); }
+
+.unit-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(258px, 1fr)); gap:12px; }
+.unit-card{ background:var(--surface); border:1px solid var(--border); border-top:3px solid var(--theme-color, var(--accent)); border-radius:14px; padding:16px 18px; text-align:left; cursor:pointer; box-shadow:var(--card-shadow); display:flex; flex-direction:column; gap:10px; font-family:inherit; }
+.unit-card:hover{ transform:translateY(-2px); box-shadow:var(--card-shadow-hover); }
+.unit-card-top{ display:flex; align-items:center; gap:12px; }
+.unit-ring{ --pct:0; --ring-color:var(--accent); width:44px; height:44px; border-radius:50%; background:conic-gradient(var(--ring-color) calc(var(--pct)*1%), var(--surface-alt) 0); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.unit-ring-inner{ width:34px; height:34px; border-radius:50%; background:var(--surface); display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:700; }
+.unit-title-block{ flex:1; min-width:0; }
+.unit-name{ font-weight:500; font-size:14px; line-height:1.4; }
+.unit-status-badge{ display:inline-block; margin-top:5px; font-weight:600; font-size:10px; padding:1px 8px; border-radius:6px; }
+.unit-status-badge.status-done{ color:var(--correct); background:#E7F5EC; }
+.unit-status-badge.status-progress{ color:var(--gold); background:var(--gold-light); }
+.unit-status-badge.status-new{ color:var(--ink-faint); background:var(--surface-alt); }
+.unit-progress-summary{ display:flex; flex-direction:column; gap:5px; padding-top:8px; border-top:1px solid var(--border); }
+.ups-line{ display:flex; justify-content:space-between; align-items:center; font-size:11.5px; color:var(--ink-soft); }
+.ups-accuracy{ font-weight:700; }
+.unit-meta-secondary{ font-size:10.5px; color:var(--ink-soft); opacity:0.8; }
+.unit-meta{ font-size:11.5px; color:var(--ink-soft); }
+.unit-empty-note{ font-size:11.5px; color:var(--ink-soft); font-style:italic; }
+.unit-pages{ font-size:10.5px; color:var(--ink-faint); }
+
+.hub-footer{ text-align:center; margin-top:32px; padding-top:16px; border-top:1px solid var(--border); }
+.hub-footer button, .data-io button{ background:none; border:none; color:var(--ink-soft); font-size:12px; text-decoration:underline; cursor:pointer; font-family:inherit; }
+.hub-footer button:hover, .data-io button:hover{ color:var(--accent); }
+.data-io{ display:flex; justify-content:center; gap:16px; flex-wrap:wrap; margin-bottom:10px; }
+.data-io button{ color:var(--accent); font-weight:600; }
+.data-io-note{ text-align:center; font-size:11px; color:var(--ink-faint); margin-bottom:20px; line-height:1.6; }
+
+.back-btn{ display:inline-flex; align-items:center; gap:6px; background:none; border:none; color:var(--ink-soft); font-size:13px; cursor:pointer; padding:12px 8px; margin:-10px 0 4px -8px; font-family:inherit; }
+.back-btn:hover{ color:var(--accent); }
+.unit-heading{ text-align:center; margin-bottom:18px; }
+.unit-heading h2{ font-size:clamp(19px,4vw,24px); margin:4px 0 0; }
+.unit-heading .pages{ font-size:12px; color:var(--accent); }
+
+.streak-badge{ display:none; text-align:center; font-size:13px; color:var(--gold); background:rgba(184,147,62,0.12); border:1px solid rgba(184,147,62,0.3); border-radius:999px; padding:6px 16px; margin:0 auto 14px; width:fit-content; }
+
+.card{ background:var(--surface); border:1px solid var(--border); border-radius:16px; box-shadow:var(--card-shadow); padding:32px 28px 26px; position:relative; }
+.q-count{ float:right; font-size:12px; color:var(--ink-soft); font-weight:600; }
+.question{ font-weight:500; font-size:clamp(17px,3.6vw,20px); line-height:1.85; margin:6px 0 28px; clear:both; }
+.answer-box{ display:none; background:var(--accent-light); border:1px solid var(--accent); border-radius:10px; padding:18px 20px; margin-bottom:20px; }
+.answer-term{ font-size:22px; font-weight:700; color:var(--accent-dark); margin-bottom:8px; }
+.answer-expl{ font-size:14px; color:var(--ink-soft); line-height:1.7; }
+button{ font-weight:700; font-size:15px; border:none; border-radius:8px; padding:14px 24px; cursor:pointer; font-family:inherit; }
+.btn-primary{ background:var(--accent); color:#fff; width:100%; padding:16px; font-size:16px; }
+.btn-primary:hover{ filter:brightness(1.08); }
+.btn-secondary{ background:transparent; color:var(--ink-soft); border:1.5px solid var(--border); }
+.judge-buttons{ display:none; gap:12px; margin-bottom:8px; }
+.btn-judge{ flex:1; padding:16px; font-size:15px; }
+.btn-judge-correct{ background:var(--correct); color:#fff; }
+.btn-judge-wrong{ background:var(--wrong); color:#fff; }
+.progress-panel{ margin-top:20px; display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--ink-soft); padding:0 4px; }
+.stat b{ font-size:18px; color:var(--ink); }
+.bar-outer{ height:6px; background:rgba(16,24,40,0.12); border-radius:4px; margin-top:10px; overflow:hidden; }
+.bar-inner{ height:100%; background:linear-gradient(90deg, var(--accent), var(--gold)); width:0%; transition:width .4s ease; }
+.reset-link{ text-align:center; margin-top:26px; }
+.reset-link button{ background:none; border:none; color:var(--ink-soft); font-size:12px; text-decoration:underline; cursor:pointer; font-family:inherit; }
+
+.done-screen{ text-align:center; padding:40px 10px; display:none; }
+.done-screen.show{ display:block; }
+.done-screen h2{ font-size:26px; margin-bottom:10px; }
+.done-screen p{ color:var(--ink-soft); margin-bottom:20px; }
+.done-actions{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+.btn-review{ background:var(--surface); color:var(--wrong); border:1.5px solid var(--wrong); }
+.btn-text{ background:none; border:none; color:var(--ink-soft); font-size:13px; font-weight:400; text-decoration:underline; padding:12px 8px; font-family:inherit; }
+
+.pairwork-hint{ text-align:center; font-size:11.5px; color:var(--ink-faint); margin:-6px 0 18px; }
+
+@media (max-width:600px){
+  body{ padding:20px 12px 48px; }
+  .overall-summary{ padding:16px; gap:16px 20px; }
+  .level-badge{ width:100%; }
+  .dashboard-divider{ display:none; }
+  .overall-bar-outer{ order:5; width:100%; flex-basis:100%; }
+  .unit-grid{ grid-template-columns:1fr; }
+}
+#hubView[hidden], #drillView[hidden]{ display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">授業・自主学習・ペアワーク用</div>
+    <h1 tabindex="-1" id="mainHeading">公共 一問一答ドリル</h1>
+    <div class="subtitle">単元を選んで学習を始めよう ― 個人学習にも、ペアで問題を出し合うのにも使えます</div>
+  </header>
+
+  <!-- ============ ハブ画面 ============ -->
+  <div id="hubView">
+    <button class="continue-banner" id="continueBanner" style="display:none;"></button>
+    <div class="overall-summary" id="overallSummary"></div>
+    <button class="recommend-card" id="recommendCard" style="display:none;"></button>
+
+    <div class="viz-panels">
+      <div class="viz-panel">
+        <div class="viz-panel-title">学習マップ<span class="viz-panel-sub">単元ごとの正答率（色が濃いほど得意）</span></div>
+        <div class="unit-heatmap" id="unitHeatmap"></div>
+      </div>
+      <div class="viz-panel">
+        <div class="viz-panel-title">学習カレンダー<span class="viz-panel-sub" id="calendarRange">直近14日間</span></div>
+        <div class="calendar-streak-line" id="calendarStreakLine"></div>
+        <div class="calendar-weekdays"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+        <div class="study-calendar" id="studyCalendar"></div>
+      </div>
+    </div>
+
+    <div class="unit-grid" id="unitGrid"></div>
+
+    <div class="hub-footer">
+      <div class="data-io">
+        <button id="exportProgressBtn">進捗をファイルに保存する</button>
+        <button id="importProgressBtn" type="button">ファイルから進捗を読み込む</button>
+        <input type="file" id="importProgressInput" accept="application/json" style="display:none;">
+      </div>
+      <div class="data-io-note">共有のChromebookなど、端末をログアウトすると記録が消える環境では、こまめに「ファイルに保存」しておくことをおすすめします。</div>
+      <button id="resetAllProgress">全単元の学習記録をすべてリセットする</button>
+    </div>
+  </div>
+
+  <!-- ============ ドリル画面 ============ -->
+  <div id="drillView" hidden>
+    <button class="back-btn" id="backToHubBtn">← 単元一覧に戻る</button>
+    <div class="drill-content">
+      <div class="unit-heading">
+        <h2 id="unitTitle"></h2>
+        <div class="pages" id="unitPages"></div>
+      </div>
+      <div class="pairwork-hint">個人学習：説明文を読んで考えてから「答えを見る」／ ペアワーク：片方が読み上げ、もう片方が答える</div>
+
+      <div class="streak-badge" id="streakBadge"></div>
+
+      <div class="card" id="cardArea">
+        <span class="q-count" id="qCount">1 / 10</span>
+        <div class="question" id="questionText"></div>
+
+        <button class="btn-primary" id="revealBtn">答えを見る</button>
+
+        <div class="answer-box" id="answerBox">
+          <div class="answer-term" id="answerTerm"></div>
+          <div class="answer-expl" id="answerExpl"></div>
+        </div>
+
+        <div class="judge-buttons" id="judgeButtons">
+          <button class="btn-judge btn-judge-wrong" id="judgeWrongBtn">わからなかった</button>
+          <button class="btn-judge btn-judge-correct" id="judgeCorrectBtn">わかった</button>
+        </div>
+      </div>
+
+      <div class="done-screen" id="doneScreen">
+        <h2>この単元は終了です！</h2>
+        <p id="doneSummary"></p>
+        <div class="done-actions">
+          <button class="btn-review" id="reviewMistakesBtn" style="display:none;"></button>
+          <button class="btn-secondary" id="restartBtn">もう一度解く</button>
+          <button class="btn-text" id="toHubFromDoneBtn">単元一覧に戻る</button>
+        </div>
+      </div>
+
+      <div class="progress-panel">
+        <div class="stat">わかった <b id="statCorrect">0</b></div>
+        <div class="stat">わからなかった <b id="statWrong">0</b></div>
+        <div class="stat">自己申告正答率 <b id="statRate">0%</b></div>
+      </div>
+      <div class="bar-outer"><div class="bar-inner" id="barInner"></div></div>
+      <div class="reset-link"><button id="resetUnitProgress">この単元の記録をリセットする</button></div>
+    </div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
