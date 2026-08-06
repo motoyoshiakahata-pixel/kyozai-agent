@@ -2,6 +2,7 @@ import "server-only";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
+  copyFileToQuestionModelFolder,
   createFileFromContent,
   deleteDriveFile,
   ensureMaterialsFolderId,
@@ -69,7 +70,7 @@ export function registerDriveTools(server: McpServer, accessToken: string): void
     "read_drive_file",
     {
       description:
-        "Googleドキュメント・Googleスプレッドシート・PDFの内容をテキストとして読み取る。PDFはOCR変換して読み取るため数秒かかる場合がある。",
+        "Googleドキュメント・Googleスプレッドシート・PDFの内容をテキストとして読み取る。PDFはOCR変換して読み取るため数秒かかる場合がある。教科書PDF・資料集PDFは、ファイル名のページ範囲をもとに「--- p.N ---」の見出しでページごとに区切って返す（pagesで必要なページだけを指定できる）。",
       inputSchema: {
         fileId: z.string().describe("読み取るファイルのID（search_drive_files/list_drive_folderの結果から取得）"),
         mimeType: z
@@ -77,11 +78,17 @@ export function registerDriveTools(server: McpServer, accessToken: string): void
           .describe(
             "ファイルの種類。application/vnd.google-apps.document / application/vnd.google-apps.spreadsheet / application/pdf のいずれか。",
           ),
+        pages: z
+          .string()
+          .optional()
+          .describe(
+            "PDFのとき、読み取るページ番号（教科書・資料集に印刷されているページ番号）。例: 「29」「29-30」「27,29」。省略すると全ページを返す。",
+          ),
       },
     },
-    async ({ fileId, mimeType }) => {
+    async ({ fileId, mimeType, pages }) => {
       try {
-        const text = await readDriveFileContent(accessToken, fileId, mimeType);
+        const text = await readDriveFileContent(accessToken, fileId, mimeType, { pages });
         const truncated = text.length > 20000 ? `${text.slice(0, 20000)}\n…（文字数上限のため以下省略）` : text;
         return textResult(truncated.trim() || "（内容が空でした）");
       } catch (error) {
@@ -173,6 +180,25 @@ export function registerDriveTools(server: McpServer, accessToken: string): void
         return textResult(`PDFを作成しました。\nファイルID: ${file.id}\nリンク: ${file.webViewLink}`);
       } catch (error) {
         return errorResult(error, "PDFの作成に失敗しました。");
+      }
+    },
+  );
+
+  server.registerTool(
+    "save_to_question_model_folder",
+    {
+      description:
+        "完成した教材を「12_問題モデルフォルダ」に複製し、次回以降に参照する問題モデルとして登録する。作成教材フォルダへの保存が済んだあとに呼び出す。",
+      inputSchema: {
+        fileId: z.string().describe("複製する完成ファイルのID（create_google_doc/export_as_pdfなどの結果）"),
+      },
+    },
+    async ({ fileId }) => {
+      try {
+        const file = await copyFileToQuestionModelFolder(accessToken, fileId);
+        return textResult(`問題モデルフォルダに登録しました。\nリンク: ${file.webViewLink}`);
+      } catch (error) {
+        return errorResult(error, "問題モデルフォルダへの保存に失敗しました。");
       }
     },
   );

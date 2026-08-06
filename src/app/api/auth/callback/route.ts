@@ -5,6 +5,7 @@ import {
   fetchGoogleUserInfo,
 } from "@/lib/google-oauth";
 import { createSession } from "@/lib/session";
+import { getGoogleRedirectUri } from "@/lib/app-url";
 
 const STATE_COOKIE = "oauth_state";
 
@@ -31,7 +32,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const tokens = await exchangeCodeForTokens(code);
+    const redirectUri = await getGoogleRedirectUri();
+    if (!redirectUri) throw new Error("コールバックURLを判別できませんでした");
+    const tokens = await exchangeCodeForTokens(code, redirectUri);
     const userInfo = await fetchGoogleUserInfo(tokens.access_token);
 
     await createSession({

@@ -7,6 +7,7 @@ export type ChatStreamEvent =
 
 export function describeMcpToolUse(toolName: string): string {
   const name = toolName.toLowerCase();
+  if (name.includes("question_model")) return "問題モデルフォルダに登録しています…";
   if (name.includes("search")) return "Googleドライブを検索しています…";
   if (name.includes("list")) return "ファイル一覧を取得しています…";
   if (name.includes("create")) return "ファイルを作成しています…";

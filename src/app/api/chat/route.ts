@@ -22,6 +22,7 @@ import {
 import { describeMcpToolUse, type ChatStreamEvent } from "@/lib/chat-events";
 import { createQuizForm, extractQuizFormJson, parseQuizFormData } from "@/lib/google-forms";
 import { moveFileToMaterialsFolder } from "@/lib/google-drive";
+import { getMcpServerUrl } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
 // Vercel Hobby(無料)プランで設定可能な上限。教材生成が長時間化する場合は
@@ -34,6 +35,8 @@ interface ChatMessage {
 }
 
 const MAX_CONTINUATIONS = 3;
+
+const PROMPT_PHASES: PromptPhase[] = ["plan", "draft", "confirm"];
 
 const DIFFICULTIES: Difficulty[] = ["auto", "basic", "standard", "advanced"];
 const QUESTION_TYPES: QuestionType[] = [
@@ -105,6 +108,13 @@ function parseMaterialOptions(body: unknown): MaterialOptions {
   };
 }
 
+// Anthropic APIが返したエラー本文。原因の切り分けに必要なので画面にも表示する
+// （APIキーなどの秘密情報は含まれない）。
+function apiErrorDetail(error: unknown): string {
+  const message = (error as { error?: { error?: { message?: unknown } } }).error?.error?.message;
+  return typeof message === "string" && message ? `\n\n詳細: ${message}` : "";
+}
+
 function describeError(error: unknown): string {
   if (error instanceof Anthropic.RateLimitError) {
     return "現在Anthropic APIへのアクセスが集中しています。しばらくしてから再度お試しください。";
@@ -113,16 +123,21 @@ function describeError(error: unknown): string {
     error instanceof Anthropic.AuthenticationError ||
     error instanceof Anthropic.PermissionDeniedError
   ) {
-    return "Anthropic APIの認証に失敗しました。管理者に環境変数の設定を確認してもらってください。";
+    return `Anthropic APIの認証に失敗しました。環境変数 ANTHROPIC_API_KEY の値を確認してください。${apiErrorDetail(error)}`;
   }
   if (error instanceof Anthropic.BadRequestError) {
-    return "リクエストの内容に問題があります。指示の内容を変えて再度お試しください。";
+    const detail = apiErrorDetail(error);
+    // 残高不足は最も多い原因なので、対処法まで案内する。
+    if (/credit balance|insufficient|billing/i.test(detail)) {
+      return `Anthropic APIの利用残高が不足しています。console.anthropic.com の Billing（請求）でクレジットを追加してください。${detail}`;
+    }
+    return `リクエストの内容に問題があります。${detail}`;
   }
   if (error instanceof Anthropic.APIConnectionError) {
     return "Anthropic APIまたはGoogle Drive MCPサーバーへの接続に失敗しました。しばらくしてから再度お試しください。";
   }
   if (error instanceof Anthropic.APIError) {
-    return `Anthropic APIでエラーが発生しました（${error.status ?? "unknown"}）。しばらくしてから再度お試しください。`;
+    return `Anthropic APIでエラーが発生しました（${error.status ?? "unknown"}）。${apiErrorDetail(error)}`;
   }
   return "エラーが発生しました。しばらくしてから再度お試しください。";
 }
@@ -135,14 +150,12 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // GOOGLE_DRIVE_MCP_SERVER_URL未設定時は、同じデプロイ内蔵のMCPサーバー
-  // （src/app/api/mcp/route.ts）をVercelのデプロイURLから自動的に使う。
-  const mcpServerUrl =
-    process.env.GOOGLE_DRIVE_MCP_SERVER_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/api/mcp` : undefined);
+  // GOOGLE_DRIVE_MCP_SERVER_URL未設定時は、このアプリ自身に内蔵しているMCPサーバー
+  // （src/app/api/mcp/route.ts）を、アクセス中のURLから組み立てて使う。
+  const mcpServerUrl = await getMcpServerUrl();
   if (!mcpServerUrl) {
     return new Response(
-      "サーバー設定エラー: GOOGLE_DRIVE_MCP_SERVER_URL が未設定です（ローカル開発時はhttps到達可能なURLを明示的に設定してください）。",
+      "サーバー設定エラー: MCPサーバーのURLを判別できませんでした。ローカル開発など、インターネットから到達できるhttpsのURLがない環境では、GOOGLE_DRIVE_MCP_SERVER_URL を明示的に設定してください。",
       { status: 500 },
     );
   }
@@ -157,7 +170,13 @@ export async function POST(request: NextRequest) {
   }
 
   const materialOptions = parseMaterialOptions(body);
-  const phase: PromptPhase = confirmSave ? "confirm" : "draft";
+  // 承認ゲート: plan（作成プラン提示）→ draft（問題案提示）→ confirm（保存）。
+  // confirmSaveは保存ボタン由来の指定で、phaseより優先する。
+  const phase: PromptPhase = confirmSave
+    ? "confirm"
+    : PROMPT_PHASES.includes(body?.phase)
+      ? body.phase
+      : "plan";
 
   const client = getAnthropicClient();
   const encoder = new TextEncoder();

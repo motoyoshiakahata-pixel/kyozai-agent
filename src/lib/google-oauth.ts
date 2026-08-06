@@ -25,10 +25,12 @@ function getEnv(name: string): string {
   return value;
 }
 
-export function buildGoogleAuthUrl(state: string): string {
+// redirectUriは、GOOGLE_REDIRECT_URIの設定値、または現在アクセスされている
+// URLから組み立てたコールバックURL（src/lib/app-url.ts）。
+export function buildGoogleAuthUrl(state: string, redirectUri: string): string {
   const params = new URLSearchParams({
     client_id: getEnv("GOOGLE_CLIENT_ID"),
-    redirect_uri: getEnv("GOOGLE_REDIRECT_URI"),
+    redirect_uri: redirectUri,
     response_type: "code",
     scope: SCOPES,
     access_type: "offline",
@@ -48,8 +50,10 @@ export interface GoogleTokens {
   id_token?: string;
 }
 
+// redirect_uriは認可時に使ったものと完全に一致している必要がある。
 export async function exchangeCodeForTokens(
   code: string,
+  redirectUri: string,
 ): Promise<GoogleTokens> {
   const res = await fetch(GOOGLE_TOKEN_URL, {
     method: "POST",
@@ -58,7 +62,7 @@ export async function exchangeCodeForTokens(
       code,
       client_id: getEnv("GOOGLE_CLIENT_ID"),
       client_secret: getEnv("GOOGLE_CLIENT_SECRET"),
-      redirect_uri: getEnv("GOOGLE_REDIRECT_URI"),
+      redirect_uri: redirectUri,
       grant_type: "authorization_code",
     }),
   });

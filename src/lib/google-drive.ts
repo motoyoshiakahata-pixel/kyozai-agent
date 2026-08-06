@@ -1,4 +1,15 @@
 import "server-only";
+import {
+  REFERENCE_FOLDERS,
+  getReferenceFolder,
+  type DriveFolderAccessResult,
+} from "@/lib/drive-folders";
+import {
+  formatPagedDocument,
+  parsePageRangeFromFileName,
+  parseRequestedPages,
+  splitTextIntoPages,
+} from "@/lib/reference-pages";
 
 const DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files";
 const MATERIALS_FOLDER_NAME = "作成教材";
@@ -93,6 +104,91 @@ export async function listFolderChildren(accessToken: string, folderName: string
   return result.files ?? [];
 }
 
+// 指定したフォルダID直下にあるファイル・サブフォルダの一覧を取得する。
+export async function listFolderChildrenById(
+  accessToken: string,
+  folderId: string,
+  limit = 100,
+): Promise<DriveSearchResult[]> {
+  const result = await driveFilesList(accessToken, {
+    q: `'${folderId}' in parents and trashed = false`,
+    fields: "files(id,name,mimeType,webViewLink)",
+    orderBy: "name",
+    pageSize: String(limit),
+  });
+
+  return result.files ?? [];
+}
+
+// 1つの参照フォルダについて、実際にGoogle Drive APIで到達できるかを確認する。
+async function checkReferenceFolder(
+  accessToken: string,
+  folder: (typeof REFERENCE_FOLDERS)[number],
+): Promise<DriveFolderAccessResult> {
+  const base = {
+    key: folder.key,
+    name: folder.name,
+    id: folder.id,
+    description: folder.description,
+    required: folder.required,
+    actualName: null as string | null,
+    fileCount: 0,
+    sampleFileNames: [] as string[],
+    message: null as string | null,
+  };
+
+  const metadataRes = await fetch(
+    `${DRIVE_FILES_URL}/${folder.id}?fields=id,name,mimeType,trashed`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+
+  if (metadataRes.status === 404) {
+    return { ...base, status: "not_found", message: "フォルダが見つかりません（IDが変わった可能性があります）。" };
+  }
+  if (metadataRes.status === 403) {
+    return { ...base, status: "forbidden", message: "このGoogleアカウントにフォルダの閲覧権限がありません。" };
+  }
+  if (!metadataRes.ok) {
+    return { ...base, status: "error", message: `Google Drive APIがエラーを返しました（${metadataRes.status}）。` };
+  }
+
+  const metadata: { name?: string; mimeType?: string; trashed?: boolean } = await metadataRes.json();
+  const actualName = metadata.name ?? null;
+
+  if (metadata.trashed) {
+    return { ...base, actualName, status: "not_found", message: "フォルダがゴミ箱に入っています。" };
+  }
+  if (metadata.mimeType !== "application/vnd.google-apps.folder") {
+    return { ...base, actualName, status: "error", message: "指定されたIDはフォルダではありません。" };
+  }
+
+  let children: DriveSearchResult[];
+  try {
+    children = await listFolderChildrenById(accessToken, folder.id);
+  } catch (error) {
+    return {
+      ...base,
+      actualName,
+      status: "error",
+      message: error instanceof Error ? error.message : "フォルダの中身を取得できませんでした。",
+    };
+  }
+
+  return {
+    ...base,
+    actualName,
+    status: children.length === 0 ? "empty" : "ok",
+    fileCount: children.length,
+    sampleFileNames: children.slice(0, 5).map((f) => f.name),
+    message: children.length === 0 ? "フォルダは開けましたが、中身が空です。" : null,
+  };
+}
+
+// 参照フォルダ（教材フォルダ・問題モデルフォルダ）すべての疎通確認を行う。
+export async function checkReferenceFolders(accessToken: string): Promise<DriveFolderAccessResult[]> {
+  return Promise.all(REFERENCE_FOLDERS.map((folder) => checkReferenceFolder(accessToken, folder)));
+}
+
 async function exportFileAsText(accessToken: string, fileId: string, mimeType: string): Promise<string> {
   const res = await fetch(
     `${DRIVE_FILES_URL}/${fileId}/export?mimeType=${encodeURIComponent(mimeType)}`,
@@ -106,13 +202,26 @@ async function exportFileAsText(accessToken: string, fileId: string, mimeType: s
   return res.text();
 }
 
+async function getFileName(accessToken: string, fileId: string): Promise<string> {
+  const res = await fetch(`${DRIVE_FILES_URL}/${fileId}?fields=name`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return "";
+  const file: { name?: string } = await res.json();
+  return file.name ?? "";
+}
+
 // Googleドキュメント/スプレッドシート/PDFの内容をテキストとして読み取る。
 // PDFはネイティブのテキストを持たないため、一時的にGoogleドキュメントへ
 // コピー（Drive側でOCR変換）してからテキストを抽出し、コピーは削除する。
+//
+// PDFはさらに、ファイル名のページ範囲（例:「27-30 伝統文化.pdf」）をもとに
+// ページごとに区切って返す。pagesを指定すると、そのページだけを返す。
 export async function readDriveFileContent(
   accessToken: string,
   fileId: string,
   mimeType: string,
+  options: { pages?: string } = {},
 ): Promise<string> {
   if (mimeType === "application/vnd.google-apps.document") {
     return exportFileAsText(accessToken, fileId, "text/plain");
@@ -133,14 +242,19 @@ export async function readDriveFileContent(
       throw new Error(`PDFのテキスト変換に失敗しました: ${copyRes.status}`);
     }
     const copy: { id: string } = await copyRes.json();
+    let rawText: string;
     try {
-      return await exportFileAsText(accessToken, copy.id, "text/plain");
+      rawText = await exportFileAsText(accessToken, copy.id, "text/plain");
     } finally {
       await fetch(`${DRIVE_FILES_URL}/${copy.id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${accessToken}` },
       }).catch(() => {});
     }
+
+    const fileName = await getFileName(accessToken, fileId);
+    const paged = splitTextIntoPages(rawText, parsePageRangeFromFileName(fileName));
+    return formatPagedDocument(fileName || "PDF", paged, parseRequestedPages(options.pages));
   }
   throw new Error(
     "このファイル形式は読み取れません（対応形式: Googleドキュメント・Googleスプレッドシート・PDF）。",
@@ -269,6 +383,34 @@ export async function ensureMaterialsFolderId(accessToken: string): Promise<stri
 
   const created: { id: string } = await res.json();
   return created.id;
+}
+
+// 完成した教材を「12_問題モデルフォルダ」に複製し、次回以降の参照対象に加える。
+// Drive APIでは1ファイルが複数フォルダに属せないため、コピーを作成する
+// （「作成教材」フォルダの原本を後から編集しても、こちらには反映されない）。
+export async function copyFileToQuestionModelFolder(
+  accessToken: string,
+  fileId: string,
+): Promise<DriveMaterial> {
+  const folder = getReferenceFolder("question_model");
+
+  const res = await fetch(
+    `${DRIVE_FILES_URL}/${fileId}/copy?fields=id,name,mimeType,webViewLink,createdTime`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ parents: [folder.id] }),
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(`「${folder.name}」への保存に失敗しました: ${res.status}`);
+  }
+
+  return res.json();
 }
 
 // Googleフォームなど、Forms APIなどマイドライブ直下に作成されるファイルを
