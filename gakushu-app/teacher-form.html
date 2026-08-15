@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>公共 教材作成 依頼フォーム</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f7f5f0;
+    --panel: #ffffff;
+    --text: #2a2a2a;
+    --muted: #6b6b6b;
+    --border: #ddd8cc;
+    --accent: #3B6EA5;
+    --accent-text: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1b18;
+      --panel: #26241f;
+      --text: #ece8dd;
+      --muted: #a39c8a;
+      --border: #3b382f;
+      --accent: #6f9ac9;
+      --accent-text: #14202c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px 16px 64px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 1.3rem; margin-bottom: 4px; }
+  p.lead { color: var(--muted); margin-top: 0; font-size: 0.92rem; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 4px; }
+  input[type="text"], input[type="number"], select, textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.95rem;
+    font-family: inherit;
+  }
+  .unit-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 8px;
+    margin-bottom: 10px;
+    align-items: end;
+  }
+  .field { margin-bottom: 14px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  button {
+    font-family: inherit;
+    font-size: 0.9rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    padding: 8px 14px;
+    cursor: pointer;
+  }
+  button.primary {
+    background: var(--accent);
+    color: var(--accent-text);
+    border-color: var(--accent);
+    font-weight: bold;
+  }
+  button.remove {
+    padding: 8px 10px;
+    color: #a33;
+  }
+  #addUnitBtn { margin-bottom: 4px; }
+  #output {
+    width: 100%;
+    min-height: 120px;
+    resize: vertical;
+    font-size: 0.95rem;
+  }
+  .output-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .hint { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+  #copyStatus { font-size: 0.85rem; color: var(--accent); margin-left: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>公共 教材作成 依頼フォーム</h1>
+  <p class="lead">単元・ページ範囲・問題数・難易度・出力形式を入力すると、Claude Code の kyozai スキルに貼り付ける依頼文を自動生成します（このページ自体はAIを呼び出しません。生成された文章をコピーして、Claude Codeのチャットに貼り付けてください）。</p>
+
+  <div class="panel">
+    <label>対象単元・ページ範囲</label>
+    <div id="unitList"></div>
+    <button type="button" id="addUnitBtn">＋ 単元を追加</button>
+    <p class="hint">2つ以上の単元を追加すると、複数単元にまたがる復習・総合問題として依頼文を生成します。</p>
+  </div>
+
+  <div class="panel">
+    <div class="row2">
+      <div class="field">
+        <label for="count">問題数</label>
+        <input type="number" id="count" min="1" max="20" value="3">
+      </div>
+      <div class="field">
+        <label for="difficulty">難易度</label>
+        <select id="difficulty">
+          <option value="標準" selected>標準（既定）</option>
+          <option value="基礎">基礎</option>
+          <option value="発展">発展</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="outputType">出力形式</label>
+      <select id="outputType">
+        <option value="both" selected>問題編・解答解説編（基本）</option>
+        <option value="questionOnly">問題編のみ</option>
+        <option value="answerOnly">解答解説のみ</option>
+      </select>
+    </div>
+  </div>
+
+  <button type="button" class="primary" id="generateBtn">依頼文を生成する</button>
+
+  <div class="panel" id="outputPanel" style="display:none; margin-top:16px;">
+    <label for="output">生成された依頼文（Claude Codeのチャットに貼り付けてください）</label>
+    <textarea id="output" readonly></textarea>
+    <div class="output-actions">
+      <button type="button" id="copyBtn">コピーする</button>
+      <span id="copyStatus"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+  const unitList = document.getElementById('unitList');
+  const addUnitBtn = document.getElementById('addUnitBtn');
+  const generateBtn = document.getElementById('generateBtn');
+  const outputPanel = document.getElementById('outputPanel');
+  const output = document.getElementById('output');
+  const copyBtn = document.getElementById('copyBtn');
+  const copyStatus = document.getElementById('copyStatus');
+
+  function addUnitRow(name = '', pages = '') {
+    const row = document.createElement('div');
+    row.className = 'unit-row';
+    row.innerHTML = `
+      <div>
+        <label>単元名</label>
+        <input type="text" class="unit-name" placeholder="例: 民主政治と政治参加" value="${name}">
+      </div>
+      <div>
+        <label>ページ範囲</label>
+        <input type="text" class="unit-pages" placeholder="例: 教科書p.72-73" value="${pages}">
+      </div>
+      <button type="button" class="remove" title="この単元を削除">×</button>
+    `;
+    row.querySelector('.remove').addEventListener('click', () => {
+      if (unitList.children.length > 1) row.remove();
+    });
+    unitList.appendChild(row);
+  }
+
+  addUnitBtn.addEventListener('click', () => addUnitRow());
+  addUnitRow();
+
+  function buildPrompt() {
+    const rows = Array.from(unitList.querySelectorAll('.unit-row'));
+    const units = rows.map(row => ({
+      name: row.querySelector('.unit-name').value.trim(),
+      pages: row.querySelector('.unit-pages').value.trim(),
+    })).filter(u => u.name);
+
+    const count = document.getElementById('count').value || '3';
+    const difficulty = document.getElementById('difficulty').value;
+    const outputType = document.getElementById('outputType').value;
+
+    if (units.length === 0) {
+      return '（単元名を1つ以上入力してください）';
+    }
+
+    const unitText = units
+      .map(u => u.pages ? `${u.name}（${u.pages}）` : u.name)
+      .join('、');
+
+    let lead;
+    if (units.length === 1) {
+      lead = `${unitText}の単元で、`;
+    } else {
+      lead = `${unitText}の${units.length}単元から、複数単元にまたがる復習問題として、`;
+    }
+
+    let sentence = `${lead}問題数${count}問、難易度は${difficulty}で、公共の問題を作成してください。`;
+
+    if (outputType === 'questionOnly') {
+      sentence += '\n出力は問題編のみで構いません（解答解説編は不要です）。';
+    } else if (outputType === 'answerOnly') {
+      sentence += '\n出力は解答解説編のみで構いません（問題編は不要です）。';
+    }
+
+    return sentence;
+  }
+
+  generateBtn.addEventListener('click', () => {
+    output.value = buildPrompt();
+    outputPanel.style.display = 'block';
+    copyStatus.textContent = '';
+  });
+
+  copyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(output.value);
+      copyStatus.textContent = 'コピーしました';
+    } catch (e) {
+      output.select();
+      document.execCommand('copy');
+      copyStatus.textContent = 'コピーしました';
+    }
+    setTimeout(() => { copyStatus.textContent = ''; }, 2000);
+  });
+</script>
+</body>
+</html>
