@@ -14,6 +14,8 @@
     --border: #ddd8cc;
     --accent: #3B6EA5;
     --accent-text: #ffffff;
+    --step-badge-bg: #3B6EA5;
+    --step-badge-text: #ffffff;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -24,6 +26,8 @@
       --border: #3b382f;
       --accent: #6f9ac9;
       --accent-text: #14202c;
+      --step-badge-bg: #6f9ac9;
+      --step-badge-text: #14202c;
     }
   }
   * { box-sizing: border-box; }
@@ -38,33 +42,89 @@
   .wrap { max-width: 640px; margin: 0 auto; }
   h1 { font-size: 1.3rem; margin-bottom: 4px; }
   p.lead { color: var(--muted); margin-top: 0; font-size: 0.92rem; }
-  .panel {
+
+  .step {
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 16px;
   }
-  label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 4px; }
+  .step-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .step-badge {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--step-badge-bg);
+    color: var(--step-badge-text);
+    font-weight: bold;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .step-title { font-size: 1.05rem; font-weight: bold; }
+  .step-desc { font-size: 0.85rem; color: var(--muted); margin: 0 0 14px 38px; }
+
+  label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: var(--text);
+    margin-bottom: 5px;
+  }
   input[type="text"], input[type="number"], select, textarea {
     width: 100%;
-    padding: 8px 10px;
-    border: 1px solid var(--border);
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
     border-radius: 8px;
     background: var(--bg);
     color: var(--text);
-    font-size: 0.95rem;
+    font-size: 1rem;
     font-family: inherit;
   }
-  .unit-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr auto;
-    gap: 8px;
-    margin-bottom: 10px;
-    align-items: end;
+  input[type="text"]:focus, input[type="number"]:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
   }
-  .field { margin-bottom: 14px; }
+
+  .unit-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 12px;
+    background: var(--bg);
+    position: relative;
+  }
+  .unit-card-title {
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+  .field { margin-bottom: 12px; }
+  .field:last-child { margin-bottom: 0; }
+  .unit-card .remove {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 4px 9px;
+    font-size: 0.85rem;
+    color: #a33;
+    border-color: var(--border);
+  }
+
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 480px) {
+    .row2 { grid-template-columns: 1fr; }
+  }
+
   button {
     font-family: inherit;
     font-size: 0.9rem;
@@ -72,7 +132,7 @@
     border: 1px solid var(--border);
     background: var(--panel);
     color: var(--text);
-    padding: 8px 14px;
+    padding: 10px 16px;
     cursor: pointer;
   }
   button.primary {
@@ -80,36 +140,44 @@
     color: var(--accent-text);
     border-color: var(--accent);
     font-weight: bold;
+    font-size: 1rem;
+    width: 100%;
+    padding: 14px 16px;
   }
-  button.remove {
-    padding: 8px 10px;
-    color: #a33;
-  }
-  #addUnitBtn { margin-bottom: 4px; }
+  #addUnitBtn { width: 100%; margin-top: 2px; }
   #output {
     width: 100%;
     min-height: 120px;
     resize: vertical;
     font-size: 0.95rem;
   }
-  .output-actions { display: flex; gap: 8px; margin-top: 10px; }
-  .hint { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
-  #copyStatus { font-size: 0.85rem; color: var(--accent); margin-left: 8px; }
+  .output-actions { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .hint { font-size: 0.8rem; color: var(--muted); margin-top: 8px; }
+  #copyStatus { font-size: 0.85rem; color: var(--accent); font-weight: bold; }
+  .step3 { display: none; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>公共 教材作成 依頼フォーム</h1>
-  <p class="lead">単元・ページ範囲・問題数・難易度・出力形式を入力すると、Claude Code の kyozai スキルに貼り付ける依頼文を自動生成します（このページ自体はAIを呼び出しません。生成された文章をコピーして、Claude Codeのチャットに貼り付けてください）。</p>
+  <p class="lead">下のステップ①〜③を順に入力すると、Claude Code の kyozai スキルにそのまま貼り付けられる依頼文ができます。このページ自体はAIを呼び出しません（コピーした文章をClaude Codeのチャットに貼り付けて使います）。</p>
 
-  <div class="panel">
-    <label>対象単元・ページ範囲</label>
+  <div class="step">
+    <div class="step-head">
+      <div class="step-badge">1</div>
+      <div class="step-title">対象の単元を入力する</div>
+    </div>
+    <p class="step-desc">下の枠の中に、単元名（必須）とページ範囲（分かれば）を入力してください。ページ範囲が分からなければ空欄のままでも大丈夫です。</p>
     <div id="unitList"></div>
-    <button type="button" id="addUnitBtn">＋ 単元を追加</button>
-    <p class="hint">2つ以上の単元を追加すると、複数単元にまたがる復習・総合問題として依頼文を生成します。</p>
+    <button type="button" id="addUnitBtn">＋ 単元をもう1つ追加する</button>
+    <p class="hint">2つ以上の単元を追加すると、複数単元にまたがる復習・総合問題として依頼文を作ります。</p>
   </div>
 
-  <div class="panel">
+  <div class="step">
+    <div class="step-head">
+      <div class="step-badge">2</div>
+      <div class="step-title">問題数・難易度・出力形式を選ぶ</div>
+    </div>
     <div class="row2">
       <div class="field">
         <label for="count">問題数</label>
@@ -134,13 +202,16 @@
     </div>
   </div>
 
-  <button type="button" class="primary" id="generateBtn">依頼文を生成する</button>
+  <button type="button" class="primary" id="generateBtn">③ 依頼文を作る</button>
 
-  <div class="panel" id="outputPanel" style="display:none; margin-top:16px;">
-    <label for="output">生成された依頼文（Claude Codeのチャットに貼り付けてください）</label>
+  <div class="step step3" id="outputPanel">
+    <div class="step-head">
+      <div class="step-badge">✓</div>
+      <div class="step-title">この文章をコピーして、Claude Codeのチャットに貼り付けてください</div>
+    </div>
     <textarea id="output" readonly></textarea>
     <div class="output-actions">
-      <button type="button" id="copyBtn">コピーする</button>
+      <button type="button" id="copyBtn">この文章をコピーする</button>
       <span id="copyStatus"></span>
     </div>
   </div>
@@ -155,34 +226,47 @@
   const copyBtn = document.getElementById('copyBtn');
   const copyStatus = document.getElementById('copyStatus');
 
-  function addUnitRow(name = '', pages = '') {
-    const row = document.createElement('div');
-    row.className = 'unit-row';
-    row.innerHTML = `
-      <div>
-        <label>単元名</label>
-        <input type="text" class="unit-name" placeholder="例: 民主政治と政治参加" value="${name}">
-      </div>
-      <div>
-        <label>ページ範囲</label>
-        <input type="text" class="unit-pages" placeholder="例: 教科書p.72-73" value="${pages}">
-      </div>
-      <button type="button" class="remove" title="この単元を削除">×</button>
-    `;
-    row.querySelector('.remove').addEventListener('click', () => {
-      if (unitList.children.length > 1) row.remove();
+  function renumberUnitCards() {
+    Array.from(unitList.querySelectorAll('.unit-card')).forEach((card, i) => {
+      card.querySelector('.unit-card-title').textContent = `単元${i + 1}`;
+      const removeBtn = card.querySelector('.remove');
+      removeBtn.style.display = unitList.children.length > 1 ? 'inline-block' : 'none';
     });
-    unitList.appendChild(row);
+  }
+
+  function addUnitRow(name = '', pages = '') {
+    const card = document.createElement('div');
+    card.className = 'unit-card';
+    card.innerHTML = `
+      <div class="unit-card-title">単元</div>
+      <button type="button" class="remove" title="この単元を削除">×削除</button>
+      <div class="field">
+        <label>単元名<span style="color:#a33;">（必須）</span></label>
+        <input type="text" class="unit-name" placeholder="ここに単元名を入力（例: 民主政治と政治参加）" value="${name}">
+      </div>
+      <div class="field">
+        <label>ページ範囲<span style="font-weight:normal; color:var(--muted);">（分かれば入力・空欄でも可）</span></label>
+        <input type="text" class="unit-pages" placeholder="ここにページ範囲を入力（例: 教科書p.72-73）" value="${pages}">
+      </div>
+    `;
+    card.querySelector('.remove').addEventListener('click', () => {
+      if (unitList.children.length > 1) {
+        card.remove();
+        renumberUnitCards();
+      }
+    });
+    unitList.appendChild(card);
+    renumberUnitCards();
   }
 
   addUnitBtn.addEventListener('click', () => addUnitRow());
   addUnitRow();
 
   function buildPrompt() {
-    const rows = Array.from(unitList.querySelectorAll('.unit-row'));
-    const units = rows.map(row => ({
-      name: row.querySelector('.unit-name').value.trim(),
-      pages: row.querySelector('.unit-pages').value.trim(),
+    const cards = Array.from(unitList.querySelectorAll('.unit-card'));
+    const units = cards.map(card => ({
+      name: card.querySelector('.unit-name').value.trim(),
+      pages: card.querySelector('.unit-pages').value.trim(),
     })).filter(u => u.name);
 
     const count = document.getElementById('count').value || '3';
@@ -190,7 +274,7 @@
     const outputType = document.getElementById('outputType').value;
 
     if (units.length === 0) {
-      return '（単元名を1つ以上入力してください）';
+      return '（ステップ①の「単元名」を1つ以上入力してから、もう一度「依頼文を作る」を押してください）';
     }
 
     const unitText = units
@@ -219,18 +303,19 @@
     output.value = buildPrompt();
     outputPanel.style.display = 'block';
     copyStatus.textContent = '';
+    outputPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
   copyBtn.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(output.value);
-      copyStatus.textContent = 'コピーしました';
+      copyStatus.textContent = '✓ コピーしました';
     } catch (e) {
       output.select();
       document.execCommand('copy');
-      copyStatus.textContent = 'コピーしました';
+      copyStatus.textContent = '✓ コピーしました';
     }
-    setTimeout(() => { copyStatus.textContent = ''; }, 2000);
+    setTimeout(() => { copyStatus.textContent = ''; }, 2500);
   });
 </script>
 </body>
