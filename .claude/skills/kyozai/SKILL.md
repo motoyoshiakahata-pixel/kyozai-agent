@@ -13,7 +13,7 @@ Googleドライブに保存済みの教科書・資料集・共通テスト過�
 
 ## 参照するGoogleドライブのフォルダ
 
-Google Drive のMCPツール（`mcp__Google_Drive__search_files` / `read_file_content` / `create_file` / `copy_file`）を使います。ツールが見つからない場合は `ToolSearch` で `select:mcp__Google_Drive__search_files,mcp__Google_Drive__read_file_content,mcp__Google_Drive__create_file,mcp__Google_Drive__copy_file` として読み込んでください。
+Google Drive のMCPツール（`mcp__Google_Drive__search_files` / `read_file_content` / `create_file` / `copy_file` / `download_file_content`）を使います。ツールが見つからない場合は `ToolSearch` で `select:mcp__Google_Drive__search_files,mcp__Google_Drive__read_file_content,mcp__Google_Drive__create_file,mcp__Google_Drive__copy_file,mcp__Google_Drive__download_file_content` として読み込んでください。
 
 フォルダの一覧を取るときは `search_files` に `parentId = 'フォルダID'` を渡します。
 
@@ -23,6 +23,7 @@ Google Drive のMCPツール（`mcp__Google_Drive__search_files` / `read_file_co
 | 資料集PDF | `06_資料集PDF` | `1TBa4llcnwtRto9uh406h2AcDRBQMbMdA` |
 | 共通テストの実物 | `03_共通テスト関連` | `1So7Z_8pp5r28201pjC2cQWr_jzsqWjwo` |
 | 問題モデル（過去に作成したもの） | `12_問題モデルフォルダ` | `1ernaHhAumZbioz7TVYbtLRZJaCQpGd-z` |
+| 問題モデルのPDF版 | `12_問題モデルフォルダ/PDF` | `1nOhUDZ3aAl_AqOo02PrnIKzIQ7csT8Fe` |
 | **保存先**（作成した教材） | `作成教材` | `1fJXE-m1RdRZzKj0jdWvBnYluYG3R3Bt8` |
 
 フォルダIDが変わった場合（フォルダを作り直した等）は、Googleドライブでフォルダを開いたときのURL（`.../folders/【この部分】`）で置き換えてください。同じ定義が `src/lib/drive-folders.ts` にもあります。
@@ -556,6 +557,14 @@ W先生：　そのとおりです。ところで、もし税金がなかった�
 - 例: `民主政治と政治参加_20260815_問題_A2-B1-D1`
 - 同じ単元・同じ日にすでに複製済みのファイルがある場合は、「Googleドキュメントのファイル名（重複防止）」と同じ連番ルールに従い、末尾に `_2`、`_3`…を付ける。
 
+**PDF版の保存**
+
+`12_問題モデルフォルダ`への複製が終わったら、続けて問題編・解答解説編それぞれのPDF版を作成し、`12_問題モデルフォルダ`直下の`PDF`フォルダ（`1nOhUDZ3aAl_AqOo02PrnIKzIQ7csT8Fe`）に保存する。
+
+1. `download_file_content` を使い、`作成教材`フォルダに保存したGoogleドキュメント（問題編・解答解説編それぞれ）を `exportMimeType: application/pdf` でエクスポートする。
+2. 得られたbase64データを `create_file` で保存する。`parentId` は `1nOhUDZ3aAl_AqOo02PrnIKzIQ7csT8Fe`、`base64Content` にエクスポート結果、`contentMimeType: application/pdf`、`disableConversionToGoogleType: true` を指定する。
+3. ファイル名は、`12_問題モデルフォルダ`へ複製したときのファイル名（`{単元名}_{作成日:YYYYMMDD}_問題_{パターン構成}` / `{単元名}_{作成日:YYYYMMDD}_解答・解説_{パターン構成}`）と対応が分かるよう同じ名前を使い、拡張子として`.pdf`を付ける（例: `民主政治と政治参加_20260815_問題_A2-B1-D1.pdf`）。
+
 **改ページ・レイアウトについて**
 
 印刷したときに1つの問題（第◯問）がページの区切り目で前後に分断されないようにする。各問題の先頭が必ずページの最初にくるよう出力すること。具体的には、各問題（第◯問）の直前に改ページを入れる、または前の問題との間に十分な余白を確保するなどの方法で、1問がページをまたいで分断されないようにする。
@@ -580,7 +589,7 @@ W先生：　そのとおりです。ところで、もし税金がなかった�
 
 教員から「アプリのデータ追加は不要」と指示された場合はこの段階を省略してよい。
 
-最後に、作成したファイル名・保存先・リンク（および学習アプリを更新した場合はその旨）を報告します。
+最後に、作成したファイル名・保存先・リンク（Googleドキュメント版・PDF版の両方）・（および学習アプリを更新した場合はその旨）を報告します。
 
 ## その他
 
