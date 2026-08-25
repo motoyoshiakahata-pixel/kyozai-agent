@@ -548,11 +548,12 @@ W先生：　そのとおりです。ところで、もし税金がなかった�
 「Sさん：」「先生：」のように話者名で始まるせりふが2行以上にわたる場合、2行目以降の文頭が1行目の話者名の直後の位置に揃うよう、ぶら下げインデントで組む。話者名の文字数は人物によって異なるため固定の字数でインデント幅を決め打ちせず、罫線なしの2列の表（`border="0"`）で組んで話者名列の幅に自動的に揃える。
 
 ```html
-<table border="0" style="border-collapse: collapse; margin: 0 0 0.8em 0;">
-<tr><td style="vertical-align: top; white-space: nowrap; padding: 0;">Sさん：</td><td style="padding: 0;">せりふの本文がここに入る。2行目以降もこのセルの左端（話者名の直後の位置）に自動的に揃う。</td></tr>
+<table border="0" style="border-collapse: collapse; width: 100%; table-layout: auto; margin: 0 0 0.8em 0;">
+<tr><td style="width: 1%; white-space: nowrap; vertical-align: top; padding: 0 0.5em 0 0;">Sさん：</td><td style="padding: 0;">せりふの本文がここに入る。2行目以降もこのセルの左端（話者名の直後の位置）に自動的に揃う。</td></tr>
 </table>
 ```
 
+- **`<table>` に `width: 100%` を、話者名セルに `width: 1%`（＋ `white-space: nowrap`）を必ず指定する。** これを付けないと、Googleドキュメントは2列の幅を均等に分割してしまい、せりふが行の中央あたりまで右へ押しやられた不自然な見た目になる。`width: 1%` は「内容の幅ぴったりまで縮める」ためのCSSの慣用的な指定で、実際に1%の幅になるわけではない。
 - 資料の罫線付き表（下記）とは違い、この用途の表は罫線を表示しないため `border="0"` を指定する。
 - 会話が続く場合は、話者の発言1回ごとに行（`<tr>`）を分けて並べる。
 
